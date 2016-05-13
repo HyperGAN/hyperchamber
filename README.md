@@ -52,12 +52,6 @@ This is currently in development and not ready for use (yet).
 # API
 
 ```python
-hyperchamber.get(name)
-```
-
-Gets a variable from the global variable store.  This can be mutated by `hyperchamber.set`
-
-```python
 hyperchamber.set(name, value)
 ```
 
@@ -69,5 +63,9 @@ hyperchamber.configs(n)
 Returns up to n configs of the form {name:value} for each set parameter.
 
 
+```python
+hyperchamber.cost(config, cost)
+```
+Store the cost of a config's training results. 
 
 

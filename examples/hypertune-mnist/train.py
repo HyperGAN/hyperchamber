@@ -5,28 +5,31 @@ import time
 import numpy as np
 import tensorflow as tf
 
-hc.set("batch_size", 128)
-hc.set("x_dims", [26, 26])
-hc.set("y_dims", [19])
+learning_rates = [ 2e-3, 2e-4 ]
+hc.set("learning_rate", learning_rates)
 
-def validate(value):
-    return value != value #NaN
+hc.set("batch_size", [128] * len(learning_rates))
+hc.set("x_dims", [[26, 26] * len(learning_rates)])
+hc.set("y_dims", [[19] * len(learning_rates)])
 
-hc.evolve.evolve("learn_rate", 0.2, validate)
+#def validate(value):
+#    return value != value #NaN
+
+#hc.evolve.evolve("learn_rate", 0.2, validate)
 
 def hidden_layers(x):
     return x*w + b
 
-def create():
-    batch_size = hc.get("batch_size")
-    x = tf.placeholder(tf.float32, [batch_size, *hc.get("x_size")], name="x")
-    y = tf.placeholder(tf.float32, [batch_size, *hc.get("y_size")], name="y")
+def create(config):
+    batch_size = config.batch_size
+    x = tf.placeholder(tf.float32, [batch_size, *config.x_size], name="x")
+    y = tf.placeholder(tf.float32, [batch_size, *config.y_size], name="y")
 
-        hidden = hidden_layers(x)
-        output = output_layer(hidden)
+    hidden = hidden_layers(config, x)
+    output = output_layer(config, hidden)
 
 
-        opt = tf.train.AdamOptimizer(self.learning_rate_d, beta1=self.beta1, name="optimizer") \
+    opt = tf.train.AdamOptimizer(self.learning_rate_d, beta1=self.beta1, name="optimizer") \
                                       .minimize(self.d_loss, var_list=self.d_vars)
     # cost = Xent
 
@@ -39,12 +42,13 @@ def train(sess, x_input, y_labels):
     cost = sess.run([cost], feed_dict={x:x_input, y:y_labels})
 
     hc.cost(cost)
-        print("Cost "+str(cost))
+    print("Cost "+str(cost))
 
-    def epoch(sess):
-        # TODO: load mnist and train on data
+def epoch(sess):
+    # TODO: load mnist and train on data
 
-for config in hc.evolve.configs(8):
+for config in hc.configs(1):
+    config = config[0]
     print("Testing configuration", config)
     sess = tf.Session()
     epoch(sess)
