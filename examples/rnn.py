@@ -3,9 +3,12 @@
 import tensorflow as tf
 import hyperchamber as hc
 
-hc.set("learning_rate", 0.01)
-hc.set("batch_size", 128)
-hc.set('rnn_size', 4)
+hc.set("learning_rate",
+        [0.01])
+hc.set("batch_size",
+        [128])
+hc.set('rnn_size',
+        [4])
 
 TRAIN_STEPS=100
 TESTS = TRAIN_STEPS/10
@@ -29,25 +32,28 @@ def rnn(x, scope='rnn'):
 #
 def create_graph(x, y):
     output, state = rnn(x)
-    hc.set("cost", tf.sum(tf.reduce_mean(output*tf.log(y))))
+    return tf.sum(tf.reduce_mean(output*tf.log(y))))
 
 def run():
     rand = np.random_uniform()#TODO as int
-    create_graph(x, y)
+    # TODO: Create subgraphs on config
+    ... graph_cost = create_graph(x, y)
     x_input = []
     y_input = []
     console.log("Training each RNN")
-    for i in range(TRAIN_STEPS):
-        _, costs = hc.parallel.run(sess, train_step, hc.get('cost'), graphs=5)
-        hc.cost(costs)
+    # sess = tf.session
+    # for config in configs:
+    #   create graph(config)
+    # epoch()
+    #
+    # close session
+    for configs in hc.configs(5):
+        for i in range(TRAIN_STEPS):
+            _, costs = parallel_run(sess, train_step, graph_costs, graphs=5)
+            hc.cost(config, costs)
 
-    for i in range(TESTS):
-        _, costs = hc.parallel.run(sess, hc.get('cost'), graphs=5)
-        print("costs are", costs)
-        hc.test(costs)
-
-    for rnn in hc.in_top_k(3):
-        print(rnn)
+   for config in hc.best_configs(3):
+        print(config)
 
 def encode(chars):
     def vectorize(c):

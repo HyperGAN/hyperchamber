@@ -49,8 +49,6 @@ examples/report
 This is currently in development and not ready for use (yet).
 
 
-
-
 # API
 
 ```python
@@ -63,14 +61,13 @@ Gets a variable from the global variable store.  This can be mutated by `hyperch
 hyperchamber.set(name, value)
 ```
 
-```python
-hyperchamber.getTensor(name)
-```
-Returns a tensor from tf.get_default_graph().get_tensor_by_name
+Set a series of hyperparameters.  Note, value must be a vector of length n, where each call to set has length n.
 
 ```python
-hyperchamber.run
+hyperchamber.configs(n)
 ```
+Returns up to n configs of the form {name:value} for each set parameter.
+
 
 
 
