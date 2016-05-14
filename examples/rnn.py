@@ -38,7 +38,7 @@ def create_graph(x, y):
 def parallel_run(sess, train_step, costs):
     return [sess.run(train_step, cost) for cost in costs]
 def run():
-    rand = np.random_uniform()#TODO as int
+    rand = np.random.uniform()#TODO as int
     x_input = []
     y_input = []
     console.log("Training each RNN")
@@ -49,6 +49,7 @@ def run():
         for config in configs:
             _, graph_cost = create_graph(x, y)
             graph_costs.push(graph_cost)
+
         for i in range(TRAIN_STEPS):
             _, costs = parallel_run(sess, train_step, graph_costs)
             hc.cost(configs, costs)
