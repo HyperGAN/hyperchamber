@@ -1,8 +1,6 @@
 # hyperchamber
 Track and optimize your tensorflow hyperparameters.
 
-To run multiple experiments in parallel:
-
 # Examples
 
 Use hyperchamber for:
@@ -37,6 +35,9 @@ examples/evolve-gan/
 
 examples/report
 
+* Run multiple experiments in parallel
+
+
 # Running in parallel
 ```python
   x = x[:hc.get('batch_size')]
@@ -48,6 +49,14 @@ examples/report
 
 This is currently in development and not ready for use (yet).
 
+
+# Installation
+
+## Developer mode
+
+```
+  python setup.py develop
+```
 
 # API
 
