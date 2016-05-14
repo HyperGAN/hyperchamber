@@ -34,23 +34,23 @@ def create_graph(x, y):
     output, state = rnn(x)
     return tf.sum(tf.reduce_mean(output*tf.log(y))))
 
+def parallel_run(sess, train_step, costs):
+    return [sess.run(train_step, cost) for cost in costs]
 def run():
     rand = np.random_uniform()#TODO as int
-    # TODO: Create subgraphs on config
-    ... graph_cost = create_graph(x, y)
     x_input = []
     y_input = []
     console.log("Training each RNN")
-    # sess = tf.session
-    # for config in configs:
-    #   create graph(config)
-    # epoch()
-    #
-    # close session
-    for configs in hc.configs(5):
+    for configs in hc.configs(1):
+        # sess = tf.session
+        # TODO: Create subgraphs on config
+        graph_costs=[]
+        for config in configs:
+            _, graph_cost = create_graph(x, y)
+            graph_costs.push(graph_cost)
         for i in range(TRAIN_STEPS):
-            _, costs = parallel_run(sess, train_step, graph_costs, graphs=5)
-            hc.cost(config, costs)
+            _, costs = parallel_run(sess, train_step, graph_costs)
+            hc.cost(configs, costs)
 
    for config in hc.best_configs(3):
         print(config)
