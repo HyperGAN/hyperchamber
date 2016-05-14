@@ -1,6 +1,7 @@
 #inspired by http://people.idsia.ch/~juergen/icann2009bayer.pdf
 
 import tensorflow as tf
+import numpy as np
 import hyperchamber as hc
 
 hc.set("learning_rate",
@@ -32,7 +33,7 @@ def rnn(x, scope='rnn'):
 #
 def create_graph(x, y):
     output, state = rnn(x)
-    return tf.sum(tf.reduce_mean(output*tf.log(y))))
+    return tf.sum(tf.reduce_mean(output*tf.log(y)))
 
 def parallel_run(sess, train_step, costs):
     return [sess.run(train_step, cost) for cost in costs]
@@ -52,7 +53,7 @@ def run():
             _, costs = parallel_run(sess, train_step, graph_costs)
             hc.cost(configs, costs)
 
-   for config in hc.best_configs(3):
+    for config in hc.top_configs(3):
         print(config)
 
 def encode(chars):
@@ -87,3 +88,5 @@ def get_an_bn_grammar(x):
 # same as above but with extra 'a's
 def get_an_bn_an_grammar(x):
     return ""
+
+run()
