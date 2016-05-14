@@ -9,9 +9,10 @@ def configs(max=1):
     configs = []
     for i in range(max):
         config = {}
+        # get an element to index over
+        values = store[list(store)[0]]
         for k in store:
-            rand=store[k][0]
-            config[k]=rand
+            config[k]=store[k][i]
         configs.append(config)
     return configs
 
