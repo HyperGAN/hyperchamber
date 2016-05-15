@@ -1,5 +1,5 @@
 import hyperchamber as hc
-import shared.mnist_data as mnist
+from shared.mnist_data import *
 from shared.ops import *
 
 import os
@@ -21,42 +21,57 @@ hc.set("y_dims", [[10] * len(learning_rates)])
 #hc.evolve.evolve("learn_rate", 0.2, validate)
 
 def hidden_layers(config, x):
-    return x
+    output = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
+    output = tf.tanh(output)
+    output = linear(output, config["y_dims"], scope="l1")
+    output = tf.tanh(output)
+    output = linear(output, config["y_dims"], scope="l2")
+    output = tf.tanh(output)
+    return output
 
 def output_layer(config, x):
-    reshaped_x = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
-    return linear(reshaped_x, config["y_dims"])
+    return linear(x, config["y_dims"])
 
 def create(config):
     batch_size = config["batch_size"]
-    x = tf.placeholder(tf.float32, [batch_size, *config["x_dims"]], name="x")
+    x = tf.placeholder(tf.float32, [batch_size, *config["x_dims"], 1], name="x")
     y = tf.placeholder(tf.float32, [batch_size, config["y_dims"]], name="y")
-    print(y)
 
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
-    print(output)
 
-    loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(output, y) )
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
+    #output = tf.nn.softmax(output)
+    #loss = -tf.reduce_mean(tf.reduce_sum(y * tf.log(output), reduction_indices=[1])
     variables = tf.trainable_variables()
 
-    opt = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
+    optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
                                       .minimize(loss, var_list=variables)
 
+    set_tensor("x", x)
+    set_tensor("y", y)
+    set_tensor("loss", loss)
+    set_tensor("optimizer", optimizer)
+    
 def train(sess, config, x_input, y_labels):
-    x = hc.tf.getTensor("x")
-    y = hc.tf.getTensor("y")
-    cost = hc.tf.getTensor("cost")
-    optimizer = hc.tf.getTensor("optimizer")
+    x = get_tensor("x")
+    y = get_tensor("y")
+    cost = get_tensor("loss")
+    optimizer = get_tensor("optimizer")
 
-    cost = sess.run([cost], feed_dict={x:x_input, y:y_labels})
+    _, cost = sess.run([optimizer, cost], feed_dict={x:x_input, y:y_labels})
 
     #hc.cost(config, cost)
     print("Cost "+str(cost))
 
-def epoch(sess):
-    # TODO: load mnist and train on data
-    print("TODO")
+def epoch(sess, config):
+    batch_size = config["batch_size"]
+    mnist = read_data_sets(one_hot=True)
+    n_samples = mnist.num_examples
+    total_batch = int(n_samples / batch_size)
+    for i in range(total_batch):
+        x, y = mnist.next_batch(batch_size, with_label=True)
+        train(sess, config, x, y)
 
 configs = [
     {
@@ -74,7 +89,9 @@ for config in configs:
     print("Testing configuration", config)
     sess = tf.Session()
     graph = create(config)
-    epoch(sess)
+    init = tf.initialize_all_variables()
+    sess.run(init)
+    epoch(sess, config)
     sess.close()
     #print("Done testing.  Final cost was:", hc.cost())
 
