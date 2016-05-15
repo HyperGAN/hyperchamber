@@ -22,11 +22,11 @@ hc.set("y_dims", [[10] * len(learning_rates)])
 
 def hidden_layers(config, x):
     output = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
-    output = tf.tanh(output)
+    output = tf.nn.relu(output)
     output = linear(output, config["y_dims"], scope="l1")
-    output = tf.tanh(output)
+    output = tf.nn.relu(output)
     output = linear(output, config["y_dims"], scope="l2")
-    output = tf.tanh(output)
+    output = tf.nn.relu(output)
     return output
 
 def output_layer(config, x):
@@ -40,9 +40,10 @@ def create(config):
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
 
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
-    #output = tf.nn.softmax(output)
-    #loss = -tf.reduce_mean(tf.reduce_sum(y * tf.log(output), reduction_indices=[1])
+    #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
+    output = tf.nn.softmax(output)
+    eps = 1e-10
+    loss = -tf.reduce_mean(tf.reduce_sum(y * tf.log(output+eps) + (1-y)*tf.log(1-output+eps)))
     variables = tf.trainable_variables()
 
     optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
