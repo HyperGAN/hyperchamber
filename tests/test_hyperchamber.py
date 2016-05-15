@@ -30,8 +30,6 @@ class hyperchamber_test(unittest.TestCase):
         hc.set('y', [3,4])
         self.assertEqual(hc.configs(2), [{'x':1,'y':3},{'x':2,'y':4}])
 
-
-
     def test_configs(self):
         hc.reset()
         self.assertEqual(hc.configs(), [])
