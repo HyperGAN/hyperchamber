@@ -3,6 +3,8 @@
 import tensorflow as tf
 import numpy as np
 import hyperchamber as hc
+from tensorflow.models.rnn import rnn_cell, rnn
+
 
 hc.set("learning_rate",
         [0.01])
@@ -14,11 +16,13 @@ hc.set('rnn_size',
 TRAIN_STEPS=100
 TESTS = TRAIN_STEPS/10
 
-def rnn(x, scope='rnn'):
+def create_rnn(config, x, scope='rnn'):
     with tf.variable_scope(scope):
-        memory=hc.get('rnn_size')
+        memory=config['rnn_size']
         cell = rnn_cell.BasicLSTMCell(memory)
-        x, state = rnn.rnn(cell, [x], dtype=tf.boolean)
+        state = cell.zero_state(batch_size=config['batch_size'], dtype=tf.float32)
+        x, state = rnn.rnn(cell, [tf.cast(x,tf.float32)], initial_state=state, dtype=tf.float32)
+        x = x[-1]
         #w = tf.get_variable('w', [hc.get('rnn_size'),4])
         #b = tf.get_variable('b', [4])
         #x = tf.nn.xw_plus_b(x, w, b)
@@ -31,28 +35,46 @@ def rnn(x, scope='rnn'):
 #
 # y is [BATCH_SIZE, 4] is a binary vector of the chance each character is correct
 #
-def create_graph(x, y):
-    output, state = rnn(x)
-    return tf.sum(tf.reduce_mean(output*tf.log(y)))
+def create_graph(config, x, y):
+    output, state = create_rnn(config, x)
+    y = tf.cast(y, tf.float32)
+    return tf.reduce_sum(tf.reduce_mean(output*tf.log(y)))
 
 def parallel_run(sess, train_step, costs):
     return [sess.run(train_step, cost) for cost in costs]
-def run():
-    rand = np.random.uniform()#TODO as int
-    x_input = []
-    y_input = []
-    console.log("Training each RNN")
-    for configs in hc.configs(1):
-        # sess = tf.session
-        # TODO: Create subgraphs on config
-        graph_costs=[]
-        for config in configs:
-            _, graph_cost = create_graph(x, y)
-            graph_costs.push(graph_cost)
 
-        for i in range(TRAIN_STEPS):
-            _, costs = parallel_run(sess, train_step, graph_costs)
-            hc.cost(configs, costs)
+def create_optimizer(cost,learning_rate):
+    optimizer = tf.train.AdamOptimizer(learning_rate)
+    grad_clip = 5.
+    tvars = tf.trainable_variables()
+    grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), grad_clip)
+    train_step = optimizer.apply_gradients(zip(grads, tvars))
+    return train_step
+
+
+def run():
+    #x_input = get_an_bn(1)
+    #y_input = get_an_bn_grammar(1)
+
+    print("Training RNNs")
+    configs = hc.configs(1, offset=0)
+    sess = tf.Session()
+    # TODO: Create subgraphs on config
+    graph_costs=[]
+    optimizers=[]
+    for config in configs:
+        x = tf.placeholder("bool", [config['batch_size'], 4])
+        y = tf.placeholder("bool", [config['batch_size'], 4])
+        x_input = [[True,False,False,False],[False,True,False,False]]
+        y_input = [[True,True,False,False],[True,False,True,False]]
+        graph_cost = create_graph(config, x, y)
+        optimizer = create_optimizer(graph_cost,config['learning_rate'])
+        graph_costs.append(graph_cost)
+        optimizers.append(optimizer)
+
+    for i in range(TRAIN_STEPS):
+        _, costs = parallel_run(sess, optimizers, graph_costs)
+        hc.cost(configs, costs)
 
     for config in hc.top_configs(3):
         print(config)
@@ -60,20 +82,20 @@ def run():
 def encode(chars):
     def vectorize(c):
         if(c=="S"):
-            return [1,0,0,0]
+            return [True,False,False,False]
         if(c=="T"):
-            return [0,1,0,0]
+            return [False,True,False,False]
         if(c=="a"):
-            return [0,0,1,0]
+            return [False,False,True,False]
         if(c=="b"):
-            return [0,0,0,1]
+            return [False,False,False,True]
     return [vectorize(c) for c in chars]
 
 
 def get_an_bn(n):
-    return encode("a"*n+"b"*n)
+    return encode("Sa"*n+"b"*n+"T")
 def get_an_bn_an(n):
-    return encode("a"*n+"b"*n+"a"*n)
+    return encode("Sa"*n+"b"*n+"a"*n+"T")
 
 # returns a vector of a**nb**n grammars given a set of one-hot vectors x, denoting the next element in a generated sequence
 # Each value is returned as an array of possible next inputs.
