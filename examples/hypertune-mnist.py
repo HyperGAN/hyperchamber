@@ -24,20 +24,24 @@ def hidden_layers(config, x):
     return x
 
 def output_layer(config, x):
-    return linear(x, config["y_dims"])
+    reshaped_x = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
+    return linear(reshaped_x, config["y_dims"])
 
 def create(config):
     batch_size = config["batch_size"]
     x = tf.placeholder(tf.float32, [batch_size, *config["x_dims"]], name="x")
     y = tf.placeholder(tf.float32, [batch_size, config["y_dims"]], name="y")
+    print(y)
 
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
+    print(output)
 
-    loss = tf.nn.softmax_cross_entropy_with_logits(output, y) 
+    loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(output, y) )
+    variables = tf.trainable_variables()
 
     opt = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
-                                      .minimize(self.d_loss, var_list=self.d_vars)
+                                      .minimize(loss, var_list=variables)
 
 def train(sess, config, x_input, y_labels):
     x = hc.tf.getTensor("x")
@@ -72,12 +76,13 @@ for config in configs:
     graph = create(config)
     epoch(sess)
     sess.close()
-    print("Done testing.  Final cost was:", hc.cost())
+    #print("Done testing.  Final cost was:", hc.cost())
 
+print("Done")
 
-for gold, silver, bronze in hc.top_configs(3):
-    print("Gold medal with: %.2f  " % gold.cost, gold.config)
-    print("Silver medal with: %.2f  " % silver.cost, silver.config)
-    print("Bronze medal with: %.2f  " % bronze.cost, bronze.config)
+#for gold, silver, bronze in hc.top_configs(3):
+#    print("Gold medal with: %.2f  " % gold.cost, gold.config)
+#    print("Silver medal with: %.2f  " % silver.cost, silver.config)
+#    print("Bronze medal with: %.2f  " % bronze.cost, bronze.config)
     
 
