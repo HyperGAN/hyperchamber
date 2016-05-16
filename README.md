@@ -61,20 +61,39 @@ This is currently in development and not ready for use (yet).
 # API
 
 ```python
-hyperchamber.set(name, value)
+  import hyperchamber as hc
+```
+```python
+  hc.set(name, value)
 ```
 
 Set a series of hyperparameters.  Note, value must be a vector of length n, where each call to set has length n.
 
 ```python
-hyperchamber.configs(n)
+  hc.configs(n)
 ```
 Returns up to n configs of the form {name:value} for each set parameter.
 
 
 ```python
-hyperchamber.cost(config, cost)
+  hc.record(config, result)
 ```
 Store the cost of a config's training results. 
 
+
+```python
+  hc.top(sort_by)
+```
+
+Return the top results across all recorded results
+
+Example:
+
+```python
+  def by_cost(x):
+    config, result =x
+    return result['cost']
+  for config, result in hc.top(by_cost): 
+    print(config, result)
+```
 
