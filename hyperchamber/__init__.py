@@ -1,9 +1,13 @@
+import uuid
+
 store = {}
-storeSize=0
+store_size=0
+results = []
+
 def set(key, value):
-    global storeSize
+    global store_size
     if(isinstance(value, list)):
-        storeSize = len(value)
+        store_size = len(value)
     store[key]=value
     return store
 
@@ -14,13 +18,13 @@ def get_config_value(k, i):
     else:
         return store[k][i]
 def configs(max=1, offset=0):
-    global storeSize
+    global store_size
     if(len(store)==0):
         return []
     configs = []
     for i in range(max):
         # get an element to index over
-        if(offset+i >= storeSize):
+        if(offset+i >= store_size):
             break
         config = {}
         for k in store:
@@ -30,7 +34,16 @@ def configs(max=1, offset=0):
 
 def reset():
     global store
-    global storeSize
+    global store_size
+    global results
     store = {}
-    storeSize=0
+    store_size=0
+    results = []
     return
+
+def top(n, sort_by):
+    sort = sorted(results, key=sort_by)
+    return sort
+
+def record(config, result):
+    results.append((config, result))
