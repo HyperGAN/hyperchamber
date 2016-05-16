@@ -22,9 +22,8 @@ hc.set("y_dims", [[10] * len(learning_rates)])
 
 def hidden_layers(config, x):
     output = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
-    output = tf.nn.relu(output)
-    output = linear(output, config["y_dims"], scope="l2")
-    output = tf.nn.relu(output)
+    #output = linear(output, 1024, scope="l2")
+    #output = tf.nn.tanh(output)
     return output
 
 def output_layer(config, x):
@@ -38,16 +37,21 @@ def create(config):
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
 
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
     output = tf.nn.softmax(output)
+    loss  = tf.reduce_mean(-tf.reduce_sum(y * tf.log(output), reduction_indices=[1]))
 
+    #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
+
+    #output = tf.nn.softmax(output)
     correct_prediction = tf.equal(tf.argmax(output,1), tf.argmax(y,1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     variables = tf.trainable_variables()
 
-    optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
-                                      .minimize(loss, var_list=variables)
+    #optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
+    #                                  .minimize(loss, var_list=variables)
+    optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
+
 
     set_tensor("x", x)
     set_tensor("y", y)
