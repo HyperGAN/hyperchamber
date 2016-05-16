@@ -44,6 +44,12 @@ class hyperchamber_test(unittest.TestCase):
     def test_reset(self):
         hc.reset()
         self.assertEqual(hc.configs(), [])
+        self.assertEqual(hc.storeSize, 0)
+
+    def test_store_size(self):
+        hc.reset()
+        hc.set('x', [1,2])
+        self.assertEqual(hc.storeSize, 2)
 
 
 if __name__ == '__main__':

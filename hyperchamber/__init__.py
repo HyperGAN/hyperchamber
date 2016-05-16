@@ -30,5 +30,7 @@ def configs(max=1, offset=0):
 
 def reset():
     global store
+    global storeSize
     store = {}
+    storeSize=0
     return
