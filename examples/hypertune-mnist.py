@@ -40,8 +40,10 @@ def create(config):
 
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
     output = tf.nn.softmax(output)
-    eps = 1e-12
-    #loss = tf.reduce_mean(tf.reduce_sum(y * -tf.log(output+eps) + (1-y)*-tf.log(1-output+eps)))
+
+    correct_prediction = tf.equal(tf.argmax(output,1), tf.argmax(y,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
     variables = tf.trainable_variables()
 
     optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
@@ -51,17 +53,20 @@ def create(config):
     set_tensor("y", y)
     set_tensor("loss", loss)
     set_tensor("optimizer", optimizer)
+    set_tensor("accuracy", accuracy)
     
 def train(sess, config, x_input, y_labels):
     x = get_tensor("x")
     y = get_tensor("y")
     cost = get_tensor("loss")
     optimizer = get_tensor("optimizer")
+    accuracy = get_tensor("accuracy")
 
-    _, cost = sess.run([optimizer, cost], feed_dict={x:x_input, y:y_labels})
+    _, accuracy, cost = sess.run([optimizer, accuracy, cost], feed_dict={x:x_input, y:y_labels})
+
 
     #hc.cost(config, cost)
-    print("Cost "+str(cost))
+    print("Accuracy %.2f Cost %.2f" % (accuracy, cost))
 
 def epoch(sess, config):
     batch_size = config["batch_size"]
