@@ -1,5 +1,9 @@
 store = {}
+storeSize=0
 def set(key, value):
+    global storeSize
+    if(isinstance(value, list)):
+        storeSize = len(value)
     store[key]=value
     return store
 
@@ -10,13 +14,13 @@ def get_config_value(k, i):
     else:
         return store[k][i]
 def configs(max=1, offset=0):
+    global storeSize
     if(len(store)==0):
         return []
     configs = []
     for i in range(max):
         # get an element to index over
-        values = store[list(store)[0]]
-        if(offset+i >= len(values)):
+        if(offset+i >= storeSize):
             break
         config = {}
         for k in store:
