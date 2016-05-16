@@ -159,3 +159,14 @@ def read_data_sets(train_dir = 'MNIST_data', one_hot=False):
   data_sets = DataSet(train_images, train_labels) # train only only train set 60k
   return data_sets
 
+def read_test_sets(train_dir = 'MNIST_data', one_hot=False):
+  TEST_IMAGES = 't10k-images-idx3-ubyte.gz'
+  TEST_LABELS = 't10k-labels-idx1-ubyte.gz'
+  VALIDATION_SIZE = 5000
+  local_file = maybe_download(TEST_IMAGES, train_dir)
+  test_images = extract_images(local_file)
+  local_file = maybe_download(TEST_LABELS, train_dir)
+  test_labels = extract_labels(local_file, one_hot=one_hot)
+
+  data_sets = DataSet(test_images, test_labels) # train only only train set 60k
+  return data_sets

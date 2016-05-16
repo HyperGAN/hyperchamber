@@ -72,7 +72,20 @@ def train(sess, config, x_input, y_labels):
 
 
     #hc.cost(config, cost)
+    #print("Accuracy %.2f Cost %.2f" % (accuracy, cost))
+
+def test(sess, config, x_input, y_labels):
+    x = get_tensor("x")
+    y = get_tensor("y")
+    cost = get_tensor("loss")
+    accuracy = get_tensor("accuracy")
+
+    accuracy, cost = sess.run([accuracy, cost], feed_dict={x:x_input, y:y_labels})
+
+
     print("Accuracy %.2f Cost %.2f" % (accuracy, cost))
+    #hc.cost(config, accuracy)
+
 
 def epoch(sess, config):
     batch_size = config["batch_size"]
@@ -83,6 +96,16 @@ def epoch(sess, config):
         x, y = mnist.next_batch(batch_size, with_label=True)
         train(sess, config, x, y)
 
+def test_config(sess, config):
+    batch_size = config["batch_size"]
+    mnist = read_test_sets(one_hot=True)
+    n_samples = mnist.num_examples
+    total_batch = int(n_samples / batch_size)
+    for i in range(total_batch):
+        x, y = mnist.next_batch(batch_size, with_label=True)
+        test(sess, config, x, y)
+
+
 for config in hc.configs(100):
     print("Testing configuration", config)
     sess = tf.Session()
@@ -90,6 +113,8 @@ for config in hc.configs(100):
     init = tf.initialize_all_variables()
     sess.run(init)
     epoch(sess, config)
+    test_config(sess, config)
+
     ops.reset_default_graph()
 sess.close()
     #print("Done testing.  Final cost was:", hc.cost())
