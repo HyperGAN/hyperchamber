@@ -23,8 +23,6 @@ hc.set("y_dims", [[10] * len(learning_rates)])
 def hidden_layers(config, x):
     output = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
     output = tf.nn.relu(output)
-    output = linear(output, config["y_dims"], scope="l1")
-    output = tf.nn.relu(output)
     output = linear(output, config["y_dims"], scope="l2")
     output = tf.nn.relu(output)
     return output
@@ -40,10 +38,10 @@ def create(config):
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
 
-    #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
     output = tf.nn.softmax(output)
-    eps = 1e-10
-    loss = -tf.reduce_mean(tf.reduce_sum(y * tf.log(output+eps) + (1-y)*tf.log(1-output+eps)))
+    eps = 1e-12
+    #loss = tf.reduce_mean(tf.reduce_sum(y * -tf.log(output+eps) + (1-y)*-tf.log(1-output+eps)))
     variables = tf.trainable_variables()
 
     optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
@@ -92,7 +90,8 @@ for config in configs:
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    epoch(sess, config)
+    for i in range(1000):
+        epoch(sess, config)
     sess.close()
     #print("Done testing.  Final cost was:", hc.cost())
 
