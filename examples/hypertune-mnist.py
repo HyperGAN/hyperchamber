@@ -9,8 +9,10 @@ import tensorflow as tf
 
 from tensorflow.python.framework import ops
 
-learning_rates = [ 0.5, 0.25, 0.125, 0.05, 0.025]
+learning_rates = [1, 0.75, 0.5, 0.25, 0.125]
 hc.set("learning_rate", learning_rates)
+hidden_layers = [ [], [128], [64, 64], [16, 32], [26,26] ]
+hc.set("hidden_layer", hidden_layers)
 
 hc.set("batch_size", 128)
 
@@ -24,8 +26,9 @@ Y_DIMS=10
 
 def hidden_layers(config, x):
     output = tf.reshape(x, [config["batch_size"], X_DIMS[0]*X_DIMS[1]])
-    output = linear(output, 26*26, scope="l2")
-    output = tf.nn.tanh(output)
+    for i, layer in enumerate(config['hidden_layer']):
+        output = linear(output, layer, scope="l"+str(i))
+        output = tf.nn.tanh(output)
     return output
 
 def output_layer(config, x):
@@ -39,9 +42,6 @@ def create(config):
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
 
-    #output = tf.nn.softmax(output)
-    #loss  = tf.reduce_mean(-tf.reduce_sum(y * tf.log(output), reduction_indices=[1]))
-
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, y), name="loss")
 
     output = tf.nn.softmax(output)
@@ -50,8 +50,6 @@ def create(config):
 
     variables = tf.trainable_variables()
 
-    #optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
-    #                                  .minimize(loss, var_list=variables)
     optimizer = tf.train.GradientDescentOptimizer(config['learning_rate']).minimize(loss)
 
 
@@ -84,7 +82,7 @@ def test(sess, config, x_input, y_labels):
 
 
     print("Accuracy %.2f Cost %.2f" % (accuracy, cost))
-    #hc.cost(config, accuracy)
+    return accuracy, cost
 
 
 def epoch(sess, config):
@@ -101,9 +99,14 @@ def test_config(sess, config):
     mnist = read_test_sets(one_hot=True)
     n_samples = mnist.num_examples
     total_batch = int(n_samples / batch_size)
+    accuracies = []
+    costs = []
     for i in range(total_batch):
         x, y = mnist.next_batch(batch_size, with_label=True)
-        test(sess, config, x, y)
+        accuracy, cost = test(sess, config, x, y)
+        accuracies.append(accuracy)
+        costs.append(cost)
+    return accuracies, costs
 
 
 for config in hc.configs(100):
@@ -113,17 +116,30 @@ for config in hc.configs(100):
     init = tf.initialize_all_variables()
     sess.run(init)
     epoch(sess, config)
-    test_config(sess, config)
-
+    accuracies, costs = test_config(sess, config)
+    accuracy, cost = np.mean(accuracies), np.mean(costs)
+    results =  {
+        'accuracy':accuracy,
+        'cost':cost
+        }
+    hc.record(config, results)
     ops.reset_default_graph()
-sess.close()
+    sess.close()
+
+
+def by_accuracy(x):
+    config,result = x
+    return 1-result['accuracy']
+
+for config, result in hc.top(by_accuracy):
+    print("RESULTS")
+    print(config, result)
+    
+
+
     #print("Done testing.  Final cost was:", hc.cost())
 
 print("Done")
 
 #for gold, silver, bronze in hc.top_configs(3):
-#    print("Gold medal with: %.2f  " % gold.cost, gold.config)
-#    print("Silver medal with: %.2f  " % silver.cost, silver.config)
-#    print("Bronze medal with: %.2f  " % bronze.cost, bronze.config)
-    
 

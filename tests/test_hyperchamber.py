@@ -46,11 +46,11 @@ class hyperchamber_test(unittest.TestCase):
         hc.reset()
         def do_nothing(x):
             return 0
-        self.assertEqual(hc.top(1, sort_by=do_nothing), [])
+        self.assertEqual(hc.top(sort_by=do_nothing), [])
         config = {'a':1}
         result = {'b':2}
         hc.record(config, result)
-        self.assertEqual(hc.top(1, sort_by=do_nothing)[0], (config, result))
+        self.assertEqual(hc.top(sort_by=do_nothing)[0], (config, result))
 
     def test_reset(self):
         hc.reset()
@@ -74,7 +74,7 @@ class hyperchamber_test(unittest.TestCase):
             config,result = x
             return result['cost']
 
-        self.assertEqual(hc.top(1, sort_by=by_cost)[0], ({'i': 9}, {'cost': 1}))
+        self.assertEqual(hc.top(sort_by=by_cost)[0], ({'i': 9}, {'cost': 1}))
 
 
 if __name__ == '__main__':

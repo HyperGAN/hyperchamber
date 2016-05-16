@@ -41,7 +41,7 @@ def reset():
     results = []
     return
 
-def top(n, sort_by):
+def top(sort_by):
     sort = sorted(results, key=sort_by)
     return sort
 
