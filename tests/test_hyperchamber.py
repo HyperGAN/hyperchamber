@@ -23,6 +23,13 @@ class hyperchamber_test(unittest.TestCase):
         self.assertEqual(hc.configs(1, offset=1), [{'x':2}])
         self.assertEqual(hc.configs(1, offset=2), [])
 
+    def test_constant_set(self):
+        hc.reset()
+        hc.set('x', 1)
+        hc.set('y', [2,3])
+        self.assertEqual(hc.configs(1), [{'x':1, 'y':2}])
+        self.assertEqual(hc.configs(1, offset=1), [{'x':1, 'y':3}])
+        self.assertEqual(hc.configs(1, offset=2), [])
 
     def test_set2_2vars(self):
         hc.reset()
@@ -37,6 +44,7 @@ class hyperchamber_test(unittest.TestCase):
     def test_reset(self):
         hc.reset()
         self.assertEqual(hc.configs(), [])
+
 
 if __name__ == '__main__':
     unittest.main()

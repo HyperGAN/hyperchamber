@@ -3,6 +3,12 @@ def set(key, value):
     store[key]=value
     return store
 
+
+def get_config_value(k, i):
+    if(not isinstance(store[k], list)):
+        return store[k]
+    else:
+        return store[k][i]
 def configs(max=1, offset=0):
     if(len(store)==0):
         return []
@@ -14,7 +20,7 @@ def configs(max=1, offset=0):
             break
         config = {}
         for k in store:
-            config[k]=store[k][offset+i]
+            config[k]=get_config_value(k, offset+i)
         configs.append(config)
     return configs
 

@@ -7,13 +7,15 @@ import time
 import numpy as np
 import tensorflow as tf
 
-learning_rates = [ 2e-3 ]
-hc.set("learning_rate", learning_rates)
-hc.set("adam_beta1", [0.9])
+from tensorflow.python.framework import ops
 
-hc.set("batch_size", [128])
-hc.set("x_dims", [[26, 26]])
-hc.set("y_dims", [10])
+learning_rates = [ 0.5, 0.25, 0.125, 0.05, 0.025]
+hc.set("learning_rate", learning_rates)
+
+hc.set("batch_size", 128)
+
+X_DIMS=[26,26]
+Y_DIMS=10
 
 #def validate(value):
 #    return value != value #NaN
@@ -21,18 +23,18 @@ hc.set("y_dims", [10])
 #hc.evolve.evolve("learn_rate", 0.2, validate)
 
 def hidden_layers(config, x):
-    output = tf.reshape(x, [config["batch_size"], config["x_dims"][0]*config["x_dims"][1]])
+    output = tf.reshape(x, [config["batch_size"], X_DIMS[0]*X_DIMS[1]])
     output = linear(output, 26*26, scope="l2")
     output = tf.nn.tanh(output)
     return output
 
 def output_layer(config, x):
-    return linear(x, config["y_dims"])
+    return linear(x, Y_DIMS)
 
 def create(config):
     batch_size = config["batch_size"]
-    x = tf.placeholder(tf.float32, [batch_size, config["x_dims"][0], config["x_dims"][1], 1], name="x")
-    y = tf.placeholder(tf.float32, [batch_size, config["y_dims"]], name="y")
+    x = tf.placeholder(tf.float32, [batch_size, X_DIMS[0], X_DIMS[1], 1], name="x")
+    y = tf.placeholder(tf.float32, [batch_size, Y_DIMS], name="y")
 
     hidden = hidden_layers(config, x)
     output = output_layer(config, hidden)
@@ -50,7 +52,7 @@ def create(config):
 
     #optimizer = tf.train.AdamOptimizer(loss, beta1=config["adam_beta1"], name="optimizer") \
     #                                  .minimize(loss, var_list=variables)
-    optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
+    optimizer = tf.train.GradientDescentOptimizer(config['learning_rate']).minimize(loss)
 
 
     set_tensor("x", x)
@@ -81,15 +83,15 @@ def epoch(sess, config):
         x, y = mnist.next_batch(batch_size, with_label=True)
         train(sess, config, x, y)
 
-for config in hc.configs(1):
-    print(config)
+for config in hc.configs(100):
     print("Testing configuration", config)
     sess = tf.Session()
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
     epoch(sess, config)
-    sess.close()
+    ops.reset_default_graph()
+sess.close()
     #print("Done testing.  Final cost was:", hc.cost())
 
 print("Done")
