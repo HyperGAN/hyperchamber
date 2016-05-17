@@ -9,9 +9,9 @@ import tensorflow as tf
 
 from tensorflow.python.framework import ops
 
-learning_rates = [1, 0.75, 0.5, 0.25, 0.125]
+learning_rates = [1, 0.8, 0.75, 0.75, 0.5, 0.25, 0.125]
 hc.set("learning_rate", learning_rates)
-hidden_layers = [ [], [128], [64, 64], [16, 32], [26,26] ]
+hidden_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26] ]
 hc.set("hidden_layer", hidden_layers)
 
 hc.set("batch_size", 128)
@@ -102,7 +102,7 @@ def test_config(sess, config):
     accuracies = []
     costs = []
     for i in range(total_batch):
-        x, y = mnist.next_batch(batch_size, with_label=True)
+        x, y = mnist.next_batch(batch_size, with_label=True )
         accuracy, cost = test(sess, config, x, y)
         accuracies.append(accuracy)
         costs.append(cost)
@@ -115,7 +115,8 @@ for config in hc.configs(100):
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    epoch(sess, config)
+    for i in range(10):
+        epoch(sess, config)
     accuracies, costs = test_config(sess, config)
     accuracy, cost = np.mean(accuracies), np.mean(costs)
     results =  {
