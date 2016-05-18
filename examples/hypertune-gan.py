@@ -9,8 +9,8 @@ import tensorflow as tf
 
 from tensorflow.python.framework import ops
 
-hc.set("g_learning_rate", 0.05)
-hc.set("d_learning_rate", 0.05)
+hc.set("g_learning_rate", 0.7)
+hc.set("d_learning_rate", 0.7)
 hc.set("g_layers", [10])
 hc.set("d_layers", [20])
 hc.set("z_dim", 64)
@@ -21,8 +21,10 @@ X_DIMS=[26,26]
 
 def generator(config):
     z = tf.random_uniform([config["batch_size"], 64],0,1)
+    result = linear(z, X_DIMS[0]*X_DIMS[1], scope="g_proj0")
+    result = tf.nn.tanh(result)
 
-    result = linear(z, X_DIMS[0]*X_DIMS[1], scope="g_proj")
+    result = linear(result, X_DIMS[0]*X_DIMS[1], scope="g_proj")
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0], X_DIMS[1]])
     return result
 
@@ -30,7 +32,9 @@ def discriminator(config, x, reuse=False):
     if(reuse):
       tf.get_variable_scope().reuse_variables()
     x = tf.reshape(x, [config["batch_size"], -1])
-    result = linear(x, 1, scope="d_proj")
+    result = linear(x, 128, scope="d_proj0")
+    result = tf.nn.tanh(result)
+    result = linear(result, 1, scope="d_proj")
     return result
     
 def create(config):
@@ -45,7 +49,7 @@ def create(config):
     d_real_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_real, tf.ones_like(d_real))
 
     g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(d_fake, tf.ones_like(d_fake)))
-    d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
+    d_loss = tf.reduce_mean(0.5*d_fake_loss + 0.5*d_real_loss)
 
     g_vars = [var for var in tf.trainable_variables() if 'g_' in var.name]
     d_vars = [var for var in tf.trainable_variables() if 'd_' in var.name]
@@ -56,32 +60,38 @@ def create(config):
     set_tensor("x", x)
     set_tensor("g_loss", g_loss)
     set_tensor("d_loss", d_loss)
+    set_tensor("d_fake_loss", tf.reduce_mean(d_fake_loss))
+    set_tensor("d_real_loss", tf.reduce_mean(d_real_loss))
     set_tensor("g_optimizer", g_optimizer)
     set_tensor("d_optimizer", d_optimizer)
     set_tensor("g", g)
+    set_tensor("d_fake", tf.reduce_mean(tf.nn.sigmoid(d_fake)))
+    set_tensor("d_real", tf.reduce_mean(tf.nn.sigmoid(d_real)))
     
 def train(sess, config, x_input):
     x = get_tensor("x")
     g_loss = get_tensor("g_loss")
     d_loss = get_tensor("d_loss")
+    d_real_loss = get_tensor("d_real_loss")
+    d_fake_loss = get_tensor("d_fake_loss")
     g_optimizer = get_tensor("g_optimizer")
     d_optimizer = get_tensor("d_optimizer")
 
-    _, d_cost = sess.run([d_optimizer, d_loss], feed_dict={x:x_input})
+    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input})
     _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input})
 
-    print("g cost %.2f d cost %.2f" % (g_cost, d_cost))
+    print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
 
 def test(sess, config, x_input, y_labels):
     x = get_tensor("x")
-    cost = get_tensor("loss")
-    accuracy = get_tensor("accuracy")
+    d_fake = get_tensor("d_fake")
+    d_real = get_tensor("d_real")
 
-    accuracy, cost = sess.run([accuracy, cost], feed_dict={x:x_input, y:y_labels})
+    d_fake_cost, d_real_cost = sess.run([d_fake, d_real], feed_dict={x:x_input})
 
 
-    print("Accuracy %.2f Cost %.2f" % (accuracy, cost))
-    return accuracy, cost
+    print("test g_loss %.2f d_loss %.2f" % (d_fake_cost, d_real_cost))
+    return d_fake_cost, d_real_cost
 
 
 def epoch(sess, config):
@@ -116,6 +126,9 @@ for config in hc.configs(100):
     sess.run(init)
     epoch(sess, config)
     accuracies, costs = test_config(sess, config)
+
+    # calculate D.difficulty = reduce_mean(d_loss) - reduce_mean(d_loss_fake)
+    # calculate G.ranking = reduce_mean(g_loss) * D.difficulty
     accuracy, cost = np.mean(accuracies), np.mean(costs)
     results =  {
         'accuracy':accuracy,
