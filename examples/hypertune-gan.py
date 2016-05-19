@@ -15,8 +15,14 @@ from tensorflow.python.framework import ops
 hc.set("g_learning_rate", 0.2)
 hc.set("d_learning_rate", 0.2)
 
-g_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26] ]
-d_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26] ]
+g_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26], 
+            [26, 128, 26], [32, 128, 32], [48, 48, 48], [10, 10,10], [14,148,14], [1,2,4,1,1,1],
+            [128,64,26], [256,128,26],[64,32], [32,48,32] 
+        ]
+d_layers = [ [],[26*26 ], [26*12],  [128], [64, 64], [16, 32], [26,26], 
+            [26, 32, 26], [32, 128, 32], [48, 48], [10, 10], [14,148,14], [1,2,4,1,1,1],
+            [64,32,26], [128,64,26],[32,16], [32,32]
+        ]
 
 hc.set("g_layers", g_layers)
 hc.set("d_layers", d_layers)
@@ -110,8 +116,9 @@ def test(sess, config, x_input, y_labels):
 
 def sample(sess, config):
     generator = get_tensor("g")
-    sample = sess.run([generator])
-    return sample[0][0]
+    sample = sess.run(generator)
+    #sample =  np.concatenate(sample, axis=0)
+    return np.reshape(sample[0:4], [26*4,26])
 
 def plot_mnist_digit(image, file):
     """ Plot a single MNIST image."""
@@ -151,7 +158,7 @@ for config in hc.configs(100):
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    for i in range(10):
+    for i in range(1):
         epoch(sess, config, mnist)
     results = test_config(sess, config)
     loss = np.array(results)
