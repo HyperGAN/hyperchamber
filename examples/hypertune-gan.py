@@ -19,10 +19,26 @@ g_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26],
             [26, 128, 26], [32, 128, 32], [48, 48, 48], [10, 10,10], [14,148,14], [1,2,4,1,1,1],
             [128,64,26], [256,128,26],[64,32], [32,48,32] 
         ]
-d_layers = [ [],[26*26 ], [26*12],  [128], [64, 64], [16, 32], [26,26], 
+d_layers = [ [],[26*12 ], [26*12],  [64], [32, 64], [16, 32], [26,26], 
             [26, 32, 26], [32, 128, 32], [48, 48], [10, 10], [14,148,14], [1,2,4,1,1,1],
             [64,32,26], [128,64,26],[32,16], [32,32]
         ]
+
+
+conv_g_layers = [None for d in d_layers]
+conv_g_layers[0]=[26]
+conv_g_layers[7]=[14, 26]
+conv_g_layers[8]=[16, 32]
+conv_g_layers[9]=[14, 26]
+
+conv_d_layers = [None for d in d_layers]
+conv_d_layers[0]=[12]
+conv_d_layers[7]=[8, 4]
+conv_d_layers[8]=[16, 10]
+conv_d_layers[9]=[8, 4]
+
+hc.set("conv_g_layers", conv_g_layers)
+hc.set("conv_d_layers", conv_d_layers)
 
 hc.set("g_layers", g_layers)
 hc.set("d_layers", d_layers)
@@ -37,9 +53,19 @@ def generator(config):
     z = tf.random_uniform([config["batch_size"], 64],0,1)
     result = z
 
-    for i, layer in enumerate(config['g_layers']):
-        result = linear(result, layer, scope="g_linear_"+str(i))
-        result = tf.nn.tanh(result)
+    if config['conv_g_layers']:
+        result = tf.reshape(result, [config['batch_size'], 8,8,1])
+        for i, layer in enumerate(config['conv_g_layers']):
+            j=int(result.get_shape()[1]*2)
+            k=int(result.get_shape()[2]*2)
+            output = [config['batch_size'], j,k,layer]
+            result = deconv2d(result, output, scope="g_conv_"+str(i))
+            result = tf.nn.sigmoid(result)
+        result = tf.reshape(result,[config['batch_size'], -1])
+    else:
+        for i, layer in enumerate(config['g_layers']):
+            result = linear(result, layer, scope="g_linear_"+str(i))
+            result = tf.nn.sigmoid(result)
     if(result.get_shape()[1] != output_shape):
         result = linear(result, output_shape, scope="g_proj")
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0], X_DIMS[1]])
@@ -48,9 +74,20 @@ def generator(config):
 def discriminator(config, x, reuse=False):
     if(reuse):
       tf.get_variable_scope().reuse_variables()
-    x = tf.reshape(x, [config["batch_size"], -1])
-    result = linear(x, 128, scope="d_proj0")
-    result = tf.nn.tanh(result)
+    if config['conv_d_layers']:
+        result = tf.reshape(x, [config["batch_size"], 26,26,1])
+        for i, layer in enumerate(config['conv_d_layers']):
+            result = conv2d(result, layer, scope='d_conv'+str(i))
+            result = tf.nn.tanh(result)
+        result = tf.reshape(x, [config["batch_size"], -1])
+    else:
+        result = tf.reshape(x, [config["batch_size"], -1])
+        for i, layer in enumerate(config['d_layers']):
+            result = linear(result, layer, scope="d_linear_"+str(i))
+            result = tf.nn.tanh(result)
+
+    #result = linear(x, 128, scope="d_proj0")
+    #result = tf.nn.relu(result)
     result = linear(result, 1, scope="d_proj")
     return result
     
@@ -85,7 +122,7 @@ def create(config):
     set_tensor("d_fake", tf.reduce_mean(tf.nn.sigmoid(d_fake)))
     set_tensor("d_real", tf.reduce_mean(tf.nn.sigmoid(d_real)))
     
-def train(sess, config, x_input):
+def train(sess, config, x_input, y_input):
     x = get_tensor("x")
     g_loss = get_tensor("g_loss")
     d_loss = get_tensor("d_loss")
@@ -97,7 +134,7 @@ def train(sess, config, x_input):
     _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input})
     _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input})
 
-    print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
+    #print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
 
 def test(sess, config, x_input, y_labels):
     x = get_tensor("x")
@@ -110,7 +147,7 @@ def test(sess, config, x_input, y_labels):
 
     #hc.event(costs, sample_image = sample[0])
     
-    print("test g_loss %.2f d_fake %.2f d_loss %.2f" % (g_cost, d_fake_cost, d_real_cost))
+    #print("test g_loss %.2f d_fake %.2f d_loss %.2f" % (g_cost, d_fake_cost, d_real_cost))
     return g_cost,d_fake_cost, d_real_cost
 
 
@@ -136,7 +173,7 @@ def epoch(sess, config, mnist):
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
         x, y = mnist.next_batch(batch_size, with_label=True)
-        train(sess, config, x)
+        train(sess, config, x, y)
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
@@ -158,7 +195,7 @@ for config in hc.configs(100):
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    for i in range(1):
+    for i in range(20):
         epoch(sess, config, mnist)
     results = test_config(sess, config)
     loss = np.array(results)
@@ -183,8 +220,8 @@ for config in hc.configs(100):
         'g_loss':g_loss,
         'd_fake':d_fake,
         'd_real':d_real,
-        'sample':s
         }
+    print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
     hc.record(config, results)
     ops.reset_default_graph()
     sess.close()
