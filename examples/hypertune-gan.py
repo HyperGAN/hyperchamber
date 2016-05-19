@@ -13,29 +13,29 @@ import matplotlib.pyplot as plt
 from tensorflow.python.framework import ops
 
 hc.set("g_learning_rate", 0.2)
-hc.set("d_learning_rate", 0.2)
+hc.set("d_learning_rate", 0.1)
 
-g_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26], 
-            [26, 128, 26], [32, 128, 32], [48, 48, 48], [10, 10,10], [14,148,14], [1,2,4,1,1,1],
-            [128,64,26], [256,128,26],[64,32], [32,48,32] 
+g_layers = [ [16, 32], [26,26], 
+             [48, 48, 48], [10, 10,10], [], 
+            [], [256,128,26],[64,32], [32,48,32] 
         ]
-d_layers = [ [],[26*12 ], [26*12],  [64], [32, 64], [16, 32], [26,26], 
-            [26, 32, 26], [32, 128, 32], [48, 48], [10, 10], [14,148,14], [1,2,4,1,1,1],
+d_layers = [ [16, 32], [26,26], 
+             [48, 48], [10, 10], [14,148,14], 
             [64,32,26], [128,64,26],[32,16], [32,32]
         ]
 
 
 conv_g_layers = [None for d in d_layers]
-conv_g_layers[0]=[26]
-conv_g_layers[7]=[14, 26]
-conv_g_layers[8]=[16, 32]
-conv_g_layers[9]=[14, 26]
+conv_g_layers[7]=[10, 1]
+conv_g_layers[8]=[16, 1]
+conv_g_layers[1]=[8, 4]
+conv_g_layers[0]=[4, 2]
 
 conv_d_layers = [None for d in d_layers]
-conv_d_layers[0]=[12]
-conv_d_layers[7]=[8, 4]
-conv_d_layers[8]=[16, 10]
-conv_d_layers[9]=[8, 4]
+conv_d_layers[7]=[4, 8]
+conv_d_layers[8]=[10, 18]
+conv_d_layers[1]=[4, 16]
+conv_d_layers[0]=[2, 8]
 
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
@@ -44,14 +44,16 @@ hc.set("g_layers", g_layers)
 hc.set("d_layers", d_layers)
 hc.set("z_dim", 64)
 
-hc.set("batch_size", 128)
+hc.set("batch_size", 2048)
 
 X_DIMS=[26,26]
+Y_DIMS=10
 
-def generator(config):
+def generator(config, y):
     output_shape = X_DIMS[0]*X_DIMS[1]
     z = tf.random_uniform([config["batch_size"], 64],0,1)
-    result = z
+    result = tf.concat(1, [y, z])
+    result = linear(result, 64, 'g_input_proj')
 
     if config['conv_g_layers']:
         result = tf.reshape(result, [config['batch_size'], 8,8,1])
@@ -88,21 +90,28 @@ def discriminator(config, x, reuse=False):
 
     #result = linear(x, 128, scope="d_proj0")
     #result = tf.nn.relu(result)
-    result = linear(result, 1, scope="d_proj")
+    result = linear(result, 11, scope="d_proj")
     return result
     
 def create(config):
     batch_size = config["batch_size"]
     x = tf.placeholder(tf.float32, [batch_size, X_DIMS[0], X_DIMS[1], 1], name="x")
+    y = tf.placeholder(tf.float32, [batch_size, Y_DIMS], name="y")
 
-    g = generator(config)
+    g = generator(config, y)
     d_fake = discriminator(config,g)
     d_real = discriminator(config,x, reuse=True)
     
-    d_fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_fake, tf.zeros_like(d_fake))
-    d_real_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_real, tf.ones_like(d_real))
+    fake_symbol = tf.tile(tf.constant([0,0,0,0,0,0,0,0,0,0,1], dtype=tf.float32), [config['batch_size']])
+    fake_symbol = tf.reshape(fake_symbol, [config['batch_size'],11])
 
-    g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(d_fake, tf.ones_like(d_fake)))
+    real_symbols = tf.concat(1, [y, tf.zeros([config['batch_size'], 1])])
+
+
+    d_fake_loss = tf.nn.softmax_cross_entropy_with_logits(d_fake, fake_symbol)
+    d_real_loss = tf.nn.softmax_cross_entropy_with_logits(d_real, real_symbols)
+
+    g_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols))
     d_loss = tf.reduce_mean(0.5*d_fake_loss + 0.5*d_real_loss)
 
     g_vars = [var for var in tf.trainable_variables() if 'g_' in var.name]
@@ -112,18 +121,20 @@ def create(config):
     d_optimizer = tf.train.GradientDescentOptimizer(config['d_learning_rate']).minimize(d_loss, var_list=d_vars)
 
     set_tensor("x", x)
+    set_tensor("y", y)
     set_tensor("g_loss", g_loss)
     set_tensor("d_loss", d_loss)
-    set_tensor("d_fake_loss", tf.reduce_mean(d_fake_loss))
-    set_tensor("d_real_loss", tf.reduce_mean(d_real_loss))
+    set_tensor("d_fake_loss", tf.reduce_mean(tf.nn.softmax(d_fake) * (1-fake_symbol)))
+    set_tensor("d_real_loss", tf.reduce_mean(tf.nn.softmax(d_real) * (real_symbols)))
     set_tensor("g_optimizer", g_optimizer)
     set_tensor("d_optimizer", d_optimizer)
     set_tensor("g", g)
-    set_tensor("d_fake", tf.reduce_mean(tf.nn.sigmoid(d_fake)))
-    set_tensor("d_real", tf.reduce_mean(tf.nn.sigmoid(d_real)))
+    set_tensor("d_fake", tf.reduce_mean(d_fake))
+    set_tensor("d_real", tf.reduce_mean(d_real))
     
 def train(sess, config, x_input, y_input):
     x = get_tensor("x")
+    y = get_tensor("y")
     g_loss = get_tensor("g_loss")
     d_loss = get_tensor("d_loss")
     d_real_loss = get_tensor("d_real_loss")
@@ -131,18 +142,19 @@ def train(sess, config, x_input, y_input):
     g_optimizer = get_tensor("g_optimizer")
     d_optimizer = get_tensor("d_optimizer")
 
-    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input})
-    _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input})
+    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input, y:y_input})
+    _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input, y:y_input})
 
     #print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
 
-def test(sess, config, x_input, y_labels):
+def test(sess, config, x_input, y_input):
     x = get_tensor("x")
+    y = get_tensor("y")
     d_fake = get_tensor("d_fake")
     d_real = get_tensor("d_real")
     g_loss = get_tensor("g_loss")
 
-    g_cost, d_fake_cost, d_real_cost = sess.run([g_loss, d_fake, d_real], feed_dict={x:x_input})
+    g_cost, d_fake_cost, d_real_cost = sess.run([g_loss, d_fake, d_real], feed_dict={x:x_input, y:y_input})
 
 
     #hc.event(costs, sample_image = sample[0])
@@ -153,11 +165,14 @@ def test(sess, config, x_input, y_labels):
 
 def sample(sess, config):
     generator = get_tensor("g")
-    sample = sess.run(generator)
+    y = get_tensor("y")
+    rand = np.random.randint(0,10, size=config['batch_size'])
+    random_one_hot = np.eye(10)[rand]
+    sample = sess.run(generator, feed_dict={y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
     return np.reshape(sample[0:4], [26*4,26])
 
-def plot_mnist_digit(image, file):
+def plot_mnist_digit(config, image, file):
     """ Plot a single MNIST image."""
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -165,6 +180,7 @@ def plot_mnist_digit(image, file):
     ax.matshow(image, cmap = matplotlib.cm.binary)
     plt.xticks(np.array([]))
     plt.yticks(np.array([]))
+    plt.suptitle(config)
     plt.savefig(file)
 
 def epoch(sess, config, mnist):
@@ -212,7 +228,7 @@ for config in hc.configs(100):
     ranking = g_loss * (1.0-difficulty)
 
     s = sample(sess, config)
-    plot_mnist_digit(s, "samples/config-"+str(j)+".png")
+    plot_mnist_digit(config, s, "samples/config-"+str(j)+".png")
     j+=1
     results =  {
         'difficulty':difficulty,
