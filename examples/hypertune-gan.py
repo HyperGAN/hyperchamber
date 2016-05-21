@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 from tensorflow.python.framework import ops
 
-hc.set("g_learning_rate", 0.2)
-hc.set("d_learning_rate", 0.1)
+hc.set("g_learning_rate", .16)
+hc.set("d_learning_rate", .08)
 
 g_layers = [ [16, 32], [26,26], 
              [48, 48, 48], [10, 10,10], [], 
@@ -28,14 +28,22 @@ d_layers = [ [16, 32], [26,26],
 conv_g_layers = [None for d in d_layers]
 conv_g_layers[7]=[10, 1]
 conv_g_layers[8]=[16, 1]
-conv_g_layers[1]=[8, 4]
-conv_g_layers[0]=[4, 2]
+conv_g_layers[2]=[10, 1]
+conv_g_layers[3]=[8, 1]
+conv_g_layers[4]=[8, 4]
+conv_g_layers[5]=[10, 5, 1]
+conv_g_layers[1]=[4, 2, 1]
+conv_g_layers[0]=[4, 2, 1]
 
 conv_d_layers = [None for d in d_layers]
 conv_d_layers[7]=[4, 8]
 conv_d_layers[8]=[10, 18]
-conv_d_layers[1]=[4, 16]
-conv_d_layers[0]=[2, 8]
+conv_d_layers[2]=[10]
+conv_d_layers[3]=[16]
+conv_d_layers[4]=[4,10]
+conv_d_layers[5]=[10, 16]
+conv_d_layers[1]=[5, 10]
+conv_d_layers[0]=[2, 4]
 
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
@@ -44,7 +52,7 @@ hc.set("g_layers", g_layers)
 hc.set("d_layers", d_layers)
 hc.set("z_dim", 64)
 
-hc.set("batch_size", 2048)
+hc.set("batch_size", 256)
 
 X_DIMS=[26,26]
 Y_DIMS=10
@@ -80,13 +88,13 @@ def discriminator(config, x, reuse=False):
         result = tf.reshape(x, [config["batch_size"], 26,26,1])
         for i, layer in enumerate(config['conv_d_layers']):
             result = conv2d(result, layer, scope='d_conv'+str(i))
-            result = tf.nn.tanh(result)
+            result = tf.nn.relu(result)
         result = tf.reshape(x, [config["batch_size"], -1])
     else:
         result = tf.reshape(x, [config["batch_size"], -1])
         for i, layer in enumerate(config['d_layers']):
             result = linear(result, layer, scope="d_linear_"+str(i))
-            result = tf.nn.tanh(result)
+            result = tf.nn.relu(result)
 
     #result = linear(x, 128, scope="d_proj0")
     #result = tf.nn.relu(result)
@@ -211,7 +219,7 @@ for config in hc.configs(100):
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    for i in range(20):
+    for i in range(200):
         epoch(sess, config, mnist)
     results = test_config(sess, config)
     loss = np.array(results)
