@@ -11,54 +11,45 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from tensorflow.python.framework import ops
+from tensorflow.examples.tutorials.mnist import input_data
 
-hc.set("g_learning_rate", .16)
-hc.set("d_learning_rate", .08)
+mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
-g_layers = [ [16, 32], [26,26], 
-            [], [256,128,26],[64,32], [32,48,32] 
-        ]
-d_layers = [ [16, 32], [26,26], 
-            [64,32,26], [128,64,26],[32,16], [32,32]
-        ]
+llen = 100
+g_layers = [ None for i in range(llen) ]
+d_layers = [ None for i in range(llen) ]
 
+start=.00001
+end=.01
+hc.set("g_learning_rate", list(np.linspace(start, end, num=len(d_layers))))
+hc.set("d_learning_rate", list(np.linspace(start, end, num=len(d_layers))))
 
-conv_g_layers = [None for d in d_layers]
-conv_g_layers[0]=[10, 1]
-conv_g_layers[1]=[16, 1]
-conv_g_layers[2]=[10, 1]
-conv_g_layers[3]=[8, 1]
-conv_g_layers[4]=[4, 1]
-conv_g_layers[5]=[6, 1]
+conv_g_layers = [[10, 1] for d in d_layers]
 
-conv_d_layers = [None for d in d_layers]
-conv_d_layers[0]=[4, 8]
-conv_d_layers[1]=[10, 18]
-conv_d_layers[2]=[10]
-conv_d_layers[3]=[16]
-conv_d_layers[4]=[4]
-conv_d_layers[5]=[6]
+conv_d_layers = [[4, 8] for d in d_layers]
 
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
 hc.set("g_layers", g_layers)
 hc.set("d_layers", d_layers)
-hc.set("z_dim", 64)
+hc.set("z_dim", 49)
+hc.set("hint_layers", [[16]] * len(conv_d_layers))
 
-hc.set("batch_size", 256)
+hc.set("batch_size", 64)
 
-X_DIMS=[26,26]
+X_DIMS=[28,28]
 Y_DIMS=10
 
-def generator(config, y):
+def generator(config, y, teach):
     output_shape = X_DIMS[0]*X_DIMS[1]
-    z = tf.random_uniform([config["batch_size"], 64],0,1)
-    result = tf.concat(1, [y, z])
-    result = linear(result, 64, 'g_input_proj')
+    z = tf.random_uniform([config["batch_size"], 10],0,1)
+    result = tf.concat(1, [y, z, teach])
+    result = linear(result, config['z_dim'], 'g_input_proj')
+    #result = tf.nn.dropout(result, 0.7)
 
     if config['conv_g_layers']:
-        result = tf.reshape(result, [config['batch_size'], 8,8,1])
+        result = tf.reshape(result, [config['batch_size'], 7,7,1])
         for i, layer in enumerate(config['conv_g_layers']):
             j=int(result.get_shape()[1]*2)
             k=int(result.get_shape()[2]*2)
@@ -79,7 +70,7 @@ def discriminator(config, x, reuse=False):
     if(reuse):
       tf.get_variable_scope().reuse_variables()
     if config['conv_d_layers']:
-        result = tf.reshape(x, [config["batch_size"], 26,26,1])
+        result = tf.reshape(x, [config["batch_size"], X_DIMS[0],X_DIMS[1],1])
         for i, layer in enumerate(config['conv_d_layers']):
             result = conv2d(result, layer, scope='d_conv'+str(i))
             result = tf.nn.relu(result)
@@ -90,20 +81,29 @@ def discriminator(config, x, reuse=False):
             result = linear(result, layer, scope="d_linear_"+str(i))
             result = tf.nn.relu(result)
 
-    #result = linear(x, 128, scope="d_proj0")
-    #result = tf.nn.relu(result)
+    #result = tf.nn.dropout(result, 0.7)
+    last_layer = result
     result = linear(result, 11, scope="d_proj")
-    return result
-    
+    return result, last_layer
+
+def teacher(config, result):
+  for i, layer in enumerate(config['hint_layers']):
+      result = linear(result, layer, scope="g_hint_linear_"+str(i))
+      result = tf.nn.relu(result)
+
+  return result
+
+
 def create(config):
     batch_size = config["batch_size"]
     x = tf.placeholder(tf.float32, [batch_size, X_DIMS[0], X_DIMS[1], 1], name="x")
     y = tf.placeholder(tf.float32, [batch_size, Y_DIMS], name="y")
 
-    g = generator(config, y)
-    d_fake = discriminator(config,g)
-    d_real = discriminator(config,x, reuse=True)
-    
+    d_real, d_last_layer = discriminator(config,x)
+    teach = teacher(config, d_last_layer)
+    g = generator(config, y, teach)
+    d_fake, _ = discriminator(config,g, reuse=True)
+
     fake_symbol = tf.tile(tf.constant([0,0,0,0,0,0,0,0,0,0,1], dtype=tf.float32), [config['batch_size']])
     fake_symbol = tf.reshape(fake_symbol, [config['batch_size'],11])
 
@@ -119,8 +119,9 @@ def create(config):
     g_vars = [var for var in tf.trainable_variables() if 'g_' in var.name]
     d_vars = [var for var in tf.trainable_variables() if 'd_' in var.name]
 
-    g_optimizer = tf.train.GradientDescentOptimizer(config['g_learning_rate']).minimize(g_loss, var_list=g_vars)
-    d_optimizer = tf.train.GradientDescentOptimizer(config['d_learning_rate']).minimize(d_loss, var_list=d_vars)
+    print('g_learning_rate', config['g_learning_rate'])
+    g_optimizer = tf.train.AdamOptimizer(config['g_learning_rate']).minimize(g_loss, var_list=g_vars)
+    d_optimizer = tf.train.AdamOptimizer(config['d_learning_rate']).minimize(d_loss, var_list=d_vars)
 
     set_tensor("x", x)
     set_tensor("y", y)
@@ -133,7 +134,7 @@ def create(config):
     set_tensor("g", g)
     set_tensor("d_fake", tf.reduce_mean(d_fake))
     set_tensor("d_real", tf.reduce_mean(d_real))
-    
+
 def train(sess, config, x_input, y_input):
     x = get_tensor("x")
     y = get_tensor("y")
@@ -160,7 +161,7 @@ def test(sess, config, x_input, y_input):
 
 
     #hc.event(costs, sample_image = sample[0])
-    
+
     #print("test g_loss %.2f d_fake %.2f d_loss %.2f" % (g_cost, d_fake_cost, d_real_cost))
     return g_cost,d_fake_cost, d_real_cost
 
@@ -168,52 +169,53 @@ def test(sess, config, x_input, y_input):
 def sample(sess, config):
     generator = get_tensor("g")
     y = get_tensor("y")
+    x = get_tensor("x")
     rand = np.random.randint(0,10, size=config['batch_size'])
     random_one_hot = np.eye(10)[rand]
-    sample = sess.run(generator, feed_dict={y:random_one_hot})
+    x_input = np.random.uniform(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],1])
+    sample = sess.run(generator, feed_dict={x:x_input, y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
-    return np.reshape(sample[0:4], [26*4,26])
+    return np.reshape(sample[0:4], [X_DIMS[0]*4,X_DIMS[1]])
 
 def plot_mnist_digit(config, image, file):
     """ Plot a single MNIST image."""
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    print(np.array(image).shape)
     ax.matshow(image, cmap = matplotlib.cm.binary)
     plt.xticks(np.array([]))
     plt.yticks(np.array([]))
-    plt.suptitle(config)
+    #plt.suptitle(config)
     plt.savefig(file)
 
 def epoch(sess, config, mnist):
     batch_size = config["batch_size"]
-    n_samples = mnist.num_examples
+    n_samples = mnist.train.num_examples
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
-        x, y = mnist.next_batch(batch_size, with_label=True)
+        x, y = mnist.train.next_batch(batch_size)
+        x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 1])
         train(sess, config, x, y)
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
-    mnist = read_test_sets(one_hot=True)
-    n_samples = mnist.num_examples
+    n_samples = mnist.test.num_examples
     total_batch = int(n_samples / batch_size)
     results = []
     for i in range(total_batch):
-        x, y = mnist.next_batch(batch_size, with_label=True )
+        x, y = mnist.test.next_batch(batch_size)
+        x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 1])
         results.append(test(sess, config, x, y))
     return results
 
 
-mnist = read_data_sets(one_hot=True)
 j=0
 for config in hc.configs(100):
-    print("Testing configuration", config)
     sess = tf.Session()
+    print("Testing configuration", config)
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
-    for i in range(200):
+    for i in range(10):
         epoch(sess, config, mnist)
     results = test_config(sess, config)
     loss = np.array(results)
@@ -242,9 +244,9 @@ for config in hc.configs(100):
     print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
     hc.record(config, results)
     ops.reset_default_graph()
-    sess.close()
 
 
+sess.close()
 def by_ranking(x):
     config,result = x
     return result['ranking']
