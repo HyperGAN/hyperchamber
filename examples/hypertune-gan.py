@@ -16,34 +16,28 @@ hc.set("g_learning_rate", .16)
 hc.set("d_learning_rate", .08)
 
 g_layers = [ [16, 32], [26,26], 
-             [48, 48, 48], [10, 10,10], [], 
             [], [256,128,26],[64,32], [32,48,32] 
         ]
 d_layers = [ [16, 32], [26,26], 
-             [48, 48], [10, 10], [14,148,14], 
             [64,32,26], [128,64,26],[32,16], [32,32]
         ]
 
 
 conv_g_layers = [None for d in d_layers]
-conv_g_layers[7]=[10, 1]
-conv_g_layers[8]=[16, 1]
+conv_g_layers[0]=[10, 1]
+conv_g_layers[1]=[16, 1]
 conv_g_layers[2]=[10, 1]
 conv_g_layers[3]=[8, 1]
-conv_g_layers[4]=[8, 4]
-conv_g_layers[5]=[10, 5, 1]
-conv_g_layers[1]=[4, 2, 1]
-conv_g_layers[0]=[4, 2, 1]
+conv_g_layers[4]=[4, 1]
+conv_g_layers[5]=[6, 1]
 
 conv_d_layers = [None for d in d_layers]
-conv_d_layers[7]=[4, 8]
-conv_d_layers[8]=[10, 18]
+conv_d_layers[0]=[4, 8]
+conv_d_layers[1]=[10, 18]
 conv_d_layers[2]=[10]
 conv_d_layers[3]=[16]
-conv_d_layers[4]=[4,10]
-conv_d_layers[5]=[10, 16]
-conv_d_layers[1]=[5, 10]
-conv_d_layers[0]=[2, 4]
+conv_d_layers[4]=[4]
+conv_d_layers[5]=[6]
 
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
@@ -153,7 +147,7 @@ def train(sess, config, x_input, y_input):
     _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input, y:y_input})
     _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input, y:y_input})
 
-    #print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
+    print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
 
 def test(sess, config, x_input, y_input):
     x = get_tensor("x")
