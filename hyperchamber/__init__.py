@@ -12,6 +12,9 @@ def set(key, value):
 
 def count_configs():
     """Counts the total number of configs."""
+    if(len(store)==0 and len(permute.store)==0):
+      return 0
+    
     count = 1
 
     for key in store:
@@ -20,12 +23,14 @@ def count_configs():
             count = len(value)
 
     return permute.count_configs(count)
+
 def get_config_value(k, i):
     """Gets the ith config value for k.  e.g. get_config_value('x', 1)"""
     if(not isinstance(store[k], list)):
         return store[k]
     else:
         return store[k][i]
+
 def configs(max=1, offset=0):
     """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] """
     if(len(store)==0 and len(permute.store)==0):

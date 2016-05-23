@@ -7,22 +7,18 @@ import hyperchamber as hc
 
 
 class permute_test(unittest.TestCase):
-    def test_set_permute(self):
-        hc.reset()
-        hc.set('x', 1)
-        hc.permute.set('y', [1])
-        self.assertEqual(hc.configs(1), [{'x':1, 'y': 1}])
-
     def test_one_permute(self):
         hc.reset()
         hc.set('x', 1)
         hc.permute.set('y', [1])
+        self.assertEqual(hc.count_configs(), 1)
         self.assertEqual(hc.configs(1), [{'x':1, 'y': 1}])
 
     def test_many_permute(self):
         hc.reset()
         hc.set('x', 1)
         hc.permute.set('y', [1, 2, 2])
+        self.assertEqual(hc.count_configs(), 3)
         self.assertEqual(hc.configs(1), [{'x':1, 'y': 1}])
 
     def test_many_to_many(self):

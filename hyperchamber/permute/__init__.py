@@ -15,7 +15,6 @@ def count_configs(prior_count):
 def get_config(i):
   """Gets the ith config"""
   selections = {}
-  count = count_configs(1)
   for key in store:
     value = store[key]
     selected = i % len(value)
