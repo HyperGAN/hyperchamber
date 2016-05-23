@@ -11,10 +11,10 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
-learning_rates = [1, 0.8, 0.75, 0.75, 0.5, 0.25, 0.125]
+learning_rates = [1, 0.75, 0.5, 0.25]
 hc.set("learning_rate", learning_rates)
-hidden_layers = [ [],[26*26, 26*26], [26*26],  [128], [64, 64], [16, 32], [26,26] ]
-hc.set("hidden_layer", hidden_layers)
+hidden_layers = [ [], [26], [128], [16, 32] ]
+hc.permute.set("hidden_layer", hidden_layers)
 
 hc.set("batch_size", 128)
 
