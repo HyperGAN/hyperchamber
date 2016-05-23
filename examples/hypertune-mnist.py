@@ -1,5 +1,4 @@
 import hyperchamber as hc
-from shared.mnist_data import *
 from shared.ops import *
 
 import os
@@ -8,6 +7,9 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.framework import ops
+from tensorflow.examples.tutorials.mnist import input_data
+
+mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
 learning_rates = [1, 0.8, 0.75, 0.75, 0.5, 0.25, 0.125]
 hc.set("learning_rate", learning_rates)
@@ -16,7 +18,7 @@ hc.set("hidden_layer", hidden_layers)
 
 hc.set("batch_size", 128)
 
-X_DIMS=[26,26]
+X_DIMS=[28,28]
 Y_DIMS=10
 
 #def validate(value):
@@ -87,22 +89,22 @@ def test(sess, config, x_input, y_labels):
 
 def epoch(sess, config):
     batch_size = config["batch_size"]
-    mnist = read_data_sets(one_hot=True)
-    n_samples = mnist.num_examples
+    n_samples = mnist.train.num_examples
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
-        x, y = mnist.next_batch(batch_size, with_label=True)
+        x, y = mnist.train.next_batch(batch_size)
+        x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 1])
         train(sess, config, x, y)
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
-    mnist = read_test_sets(one_hot=True)
-    n_samples = mnist.num_examples
+    n_samples = mnist.test.num_examples
     total_batch = int(n_samples / batch_size)
     accuracies = []
     costs = []
     for i in range(total_batch):
-        x, y = mnist.next_batch(batch_size, with_label=True )
+        x, y = mnist.test.next_batch(batch_size)
+        x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 1])
         accuracy, cost = test(sess, config, x, y)
         accuracies.append(accuracy)
         costs.append(cost)
