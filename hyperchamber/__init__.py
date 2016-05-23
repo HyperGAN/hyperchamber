@@ -1,49 +1,68 @@
 import uuid
 
+import hyperchamber.permute as permute
+
 store = {}
-store_size=0
 results = []
 
 def set(key, value):
-    global store_size
-    if(isinstance(value, list)):
-        store_size = len(value)
+    """Sets a hyperparameter.  Can be used to set an array of hyperparameters."""
     store[key]=value
     return store
 
+def count_configs():
+    """Counts the total number of configs."""
+    count = 1
 
+    for key in store:
+        value = store[key]
+        if(isinstance(value, list) and len(value) > count):
+            count = len(value)
+
+    return permute.count_configs(count)
 def get_config_value(k, i):
+    """Gets the ith config value for k.  e.g. get_config_value('x', 1)"""
     if(not isinstance(store[k], list)):
         return store[k]
     else:
         return store[k][i]
 def configs(max=1, offset=0):
-    global store_size
-    if(len(store)==0):
+    """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] """
+    if(len(store)==0 and len(permute.store)==0):
         return []
     configs = []
+    total = count_configs()
+    permute_configs = permute.count_configs(1)
+    singular_configs = total // permute_configs
+
     for i in range(max):
         # get an element to index over
-        if(offset+i >= store_size):
+        if(offset+i >= total):
             break
+
         config = {}
         for k in store:
-            config[k]=get_config_value(k, offset+i)
+            config[k]=get_config_value(k, (offset+i)//permute_configs)
+
+        more = permute.get_config((offset+i) % permute_configs)
+        config.update(more)
         configs.append(config)
     return configs
 
 def reset():
+    """Reset the hyperchamber variables"""
     global store
-    global store_size
     global results
+    permute.store = {}
     store = {}
-    store_size=0
     results = []
     return
 
 def top(sort_by):
+    """Get the best results according to your custom sort method."""
     sort = sorted(results, key=sort_by)
     return sort
 
 def record(config, result):
+    """Record the results of a config."""
     results.append((config, result))
