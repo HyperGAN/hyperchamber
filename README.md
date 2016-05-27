@@ -116,15 +116,23 @@ It is currently in alpha state.
 Set the apikey you will use.
 
 ```python
+  hc.io.model(mymodel)
+```
+
+Models organize your results.  All networks trained on the same model are ranked against each other.
+
+example: hc.io.model('255bits/hypergan.hc')
+
+```python
   hc.io.sample(config, sample)
 ```
 
-Send a sample to your hyperchamber.io account.
+Send a sample to your hyperchamber.io account.  Samples are intrinsic measurements of your model.
 
 Note:  this issues a rate limited HTTP request.  Samples more frequent than the rate limit are not synced. 
 
 ```python
-  hc.io.record(model_name)
+  hc.io.record(config, result)
 ```
 
 Saves the results of your model.  Call this instead of hc.record.
