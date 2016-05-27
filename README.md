@@ -121,6 +121,8 @@ Set the apikey you will use.
 
 Models organize your results.  All networks trained on the same model are ranked against each other.
 
+Please use the same test and training set across configs for more accurate model comparisons. 
+
 example: hc.io.model('255bits/hypergan.hc')
 
 ```python

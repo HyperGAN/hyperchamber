@@ -1,6 +1,7 @@
 import uuid
 
 import hyperchamber.permute as permute
+import hyperchamber.io as io
 
 store = {}
 results = []
