@@ -103,3 +103,30 @@ Example:
     print(config, result)
 ```
 
+## hyperchamber.io
+
+Hyperchamber.io allows you to save and share your hyperparameters across runs and across organizations.
+
+It is currently in alpha state.
+
+```python
+  hc.io.apikey(apikey)
+```
+
+Set the apikey you will use.
+
+```python
+  hc.io.sample(config, sample)
+```
+
+Send a sample to your hyperchamber.io account.
+
+Note:  this issues a rate limited HTTP request.  Samples more frequent than the rate limit are not synced. 
+
+```python
+  hc.io.record(model_name)
+```
+
+Saves the results of your model.  Call this instead of hc.record.
+
+
