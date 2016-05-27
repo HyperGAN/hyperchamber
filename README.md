@@ -70,6 +70,12 @@ This is currently in development and not ready for use (yet).
 Set a series of hyperparameters.  Note, value must be a vector of length n, where each call to set has length n.
 
 ```python
+  hc.permute.set(name, values)
+```
+
+Permute over a series of hyperparameters.
+
+```python
   hc.configs(n)
 ```
 Returns up to n configs of the form {name:value} for each set parameter.
