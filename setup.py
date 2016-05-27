@@ -7,7 +7,7 @@ setup(
     author='Martyn Garcia',
     author_email="martyn@255bits.com",
     packages=['hyperchamber'],
-    install_requires=['tensorflow>=0.7.0', 'numpy>=1.7', 'scipy>=0.16'],
+    install_requires=['tensorflow>=0.7.0', 'numpy>=1.7', 'scipy>=0.16', 'requests >= 2.10'],
     url='https://github.com/255bits/hyperchamber',
     license='MIT',
     classifiers=['License :: MIT',
