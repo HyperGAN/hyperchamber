@@ -3,6 +3,8 @@ import uuid
 import hyperchamber.permute as permute
 import hyperchamber.io as io
 
+import random
+
 store = {}
 results = []
 
@@ -32,16 +34,19 @@ def get_config_value(k, i):
     else:
         return store[k][i]
 
-def configs(max=1, offset=0):
+def configs(max_configs=1, offset=None):
     """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] """
     if(len(store)==0 and len(permute.store)==0):
         return []
+
+    if(offset == None):
+      offset = max(0, random.randint(0, count_configs() - max_configs))
     configs = []
     total = count_configs()
     permute_configs = permute.count_configs(1)
     singular_configs = total // permute_configs
 
-    for i in range(max):
+    for i in range(max_configs):
         # get an element to index over
         if(offset+i >= total):
             break
