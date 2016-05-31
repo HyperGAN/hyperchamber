@@ -115,8 +115,8 @@ def create(config):
     d_vars = [var for var in tf.trainable_variables() if 'd_' in var.name]
 
     print('g_learning_rate', config['g_learning_rate'])
-    g_optimizer = tf.train.AdamOptimizer(config['g_learning_rate']).minimize(g_loss, var_list=g_vars)
-    d_optimizer = tf.train.AdamOptimizer(config['d_learning_rate']).minimize(d_loss, var_list=d_vars)
+    g_optimizer = tf.train.AdamOptimizer(np.float32(config['g_learning_rate'])).minimize(g_loss, var_list=g_vars)
+    d_optimizer = tf.train.AdamOptimizer(np.float32(config['d_learning_rate'])).minimize(d_loss, var_list=d_vars)
 
     set_tensor("x", x)
     set_tensor("y", y)
