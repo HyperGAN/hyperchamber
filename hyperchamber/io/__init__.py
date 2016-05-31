@@ -1,4 +1,5 @@
 import requests
+import json
 
 def get_api_path(end):
   return "http://localhost:3000/api/v1/"+end
@@ -13,7 +14,8 @@ def sample(config, images):
   multiple_files = []
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
-  r = requests.post(url, json=config, files=multiple_files, timeout=5)
+  headers = {"config": json.dumps(config)}
+  r = requests.post(url, files=multiple_files, headers=headers, timeout=5)
   return r.text
 
 def record(config, result):

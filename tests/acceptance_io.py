@@ -28,6 +28,7 @@ hc.set("test", "acceptance_io")
 
 for config in hc.configs(1):
   filename = "/tmp/acceptance_io.png"
+  test_graph(config, filename)
   hc.io.sample(config, [filename])
 
   hc.io.record(config, {'done': True})
