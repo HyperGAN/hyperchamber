@@ -1,5 +1,4 @@
 import hyperchamber as hc
-from shared.mnist_data import *
 from shared.ops import *
 
 import os
