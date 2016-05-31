@@ -7,10 +7,6 @@ def apikey(apikey):
   """Sets up your api key."""
   print("TODO: Api keys")
 
-def model(model):
-  """Sets up the model you would like to use."""
-  print("Model", model)
-
 def sample(config, images):
   """Upload a series of images.  Images are ignored if the rate limit is hit."""
   url = get_api_path('intrinsic.json')

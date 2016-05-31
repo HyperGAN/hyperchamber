@@ -19,7 +19,9 @@ plt.title('Are intrinsic measurements working?')
 plt.savefig("/tmp/acceptance_io.png")
 
 #hc.io.apikey("TODO")
-hc.io.model("sanity")
+
+hc.set("model", "255bits/acceptance_test")
+hc.set("version", "0.0.1")
 
 config = {'test': 'acceptance_io'}
 hc.io.sample(config, ["/tmp/acceptance_io.png"])
