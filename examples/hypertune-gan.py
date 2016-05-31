@@ -14,31 +14,27 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
-llen = 100
-g_layers = [ None for i in range(llen) ]
-d_layers = [ None for i in range(llen) ]
-
 start=.00001
 end=.01
-hc.set("g_learning_rate", list(np.linspace(start, end, num=len(d_layers))))
-hc.set("d_learning_rate", list(np.linspace(start, end, num=len(d_layers))))
+num=20
+hc.permute.set("g_learning_rate", list(np.linspace(start, end, num=num)))
+hc.permute.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
-conv_g_layers = [[10, 1] for d in d_layers]
+conv_g_layers = [[10, 1], [16,1]]
 
-conv_d_layers = [[4, 8] for d in d_layers]
+conv_d_layers = [[4, 8], [6,8]]
 
-hc.set("conv_g_layers", conv_g_layers)
-hc.set("conv_d_layers", conv_d_layers)
+hc.permute.set("conv_g_layers", conv_g_layers)
+hc.permute.set("conv_d_layers", conv_d_layers)
 
-hc.set("g_layers", g_layers)
-hc.set("d_layers", d_layers)
-hc.set("z_dim", 49)
-hc.set("hint_layers", [[16]] * len(conv_d_layers))
+hc.permute.set("z_dim", [49, 32, 16])
+hc.permute.set("hint_layers", [[16]])
 
 hc.set("batch_size", 64)
 
 X_DIMS=[28,28]
 Y_DIMS=10
+
 
 def generator(config, y, teach):
     output_shape = X_DIMS[0]*X_DIMS[1]
@@ -206,6 +202,7 @@ def test_config(sess, config):
         results.append(test(sess, config, x, y))
     return results
 
+print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
 for config in hc.configs(100):
@@ -253,8 +250,6 @@ def by_ranking(x):
 for config, result in hc.top(by_ranking):
     print("RESULTS")
     print(config, result)
-    
-
 
     #print("Done testing.  Final cost was:", hc.cost())
 
