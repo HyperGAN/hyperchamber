@@ -19,7 +19,7 @@ def sample(config, images):
   multiple_files = []
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
-  r = requests.post(url, files=multiple_files, timeout=5)
+  r = requests.post(url, data=config, files=multiple_files, timeout=5)
   print("response", r)
   return r.text
 
