@@ -228,17 +228,21 @@ for config in hc.configs(100):
     ranking = g_loss * (1.0-difficulty)
 
     s = sample(sess, config)
-    plot_mnist_digit(config, s, "samples/config-"+str(j)+".png")
+    sample_file = "samples/config-"+str(j)+".png"
+    plot_mnist_digit(config, s, sample_file)
+
+    hc.io.sample(config, [sample_file])
     j+=1
     results =  {
-        'difficulty':difficulty,
-        'ranking':ranking,
-        'g_loss':g_loss,
-        'd_fake':d_fake,
-        'd_real':d_real,
+        'difficulty':float(difficulty),
+        'ranking':float(ranking),
+        'g_loss':float(g_loss),
+        'd_fake':float(d_fake),
+        'd_real':float(d_real),
         }
     print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
-    hc.record(config, results)
+    print(type(ranking))
+    hc.io.record(config, results)
     ops.reset_default_graph()
 
 
