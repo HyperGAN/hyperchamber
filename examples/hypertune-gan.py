@@ -20,9 +20,9 @@ num=20
 hc.permute.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.permute.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
-conv_g_layers = [[10, 1], [16,1]]
+conv_g_layers = [[10, 1]]
 
-conv_d_layers = [[4, 8], [6,8]]
+conv_d_layers = [[4, 8]]
 
 hc.permute.set("conv_g_layers", conv_g_layers)
 hc.permute.set("conv_d_layers", conv_d_layers)
@@ -31,6 +31,8 @@ hc.permute.set("z_dim", [49, 32, 16])
 hc.permute.set("hint_layers", [[16]])
 
 hc.set("batch_size", 64)
+hc.set("model", "255bits/mnist-gan-example")
+hc.set("version", "0.0.1")
 
 X_DIMS=[28,28]
 Y_DIMS=10
