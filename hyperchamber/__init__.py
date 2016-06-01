@@ -34,8 +34,12 @@ def get_config_value(k, i):
     else:
         return store[k][i]
 
-def configs(max_configs=1, offset=None):
-    """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] """
+def configs(max_configs=1, offset=None, createUUID=True):
+    """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] 
+      
+      Will also add a config UUID, useful for tracking configs.  
+      You can turn this off by passing createUUID=False.
+    """
     if(len(store)==0 and len(permute.store)==0):
         return []
 
@@ -57,6 +61,8 @@ def configs(max_configs=1, offset=None):
 
         more = permute.get_config((offset+i) % permute_configs)
         config.update(more)
+        if(createUUID):
+          config["uuid"]=uuid.uuid4().hex
         configs.append(config)
     return configs
 
