@@ -31,5 +31,5 @@ for config in hc.configs(1):
   test_graph(config, filename)
   hc.io.sample(config, [filename])
 
-  hc.io.record(config, {'done': True})
+  hc.io.record(config, {'ranking': 1})
   print("Stored config", config)
