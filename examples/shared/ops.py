@@ -61,5 +61,23 @@ tensors = {}
 def get_tensor(name, graph=tf.get_default_graph(), isOperation=False):
   return tensors[name]# || graph.as_graph_element(name)
 
+def get_tensors(name):
+    return tensors_list[name]
+
+tensors_list={}
+def set_tensors(name, tensor):
+    if(name in tensors_list):
+        tensors_list[name].append(tensor)
+    else:
+        tensors_list[name]=[tensor]
+
+
 def set_tensor(name, tensor):
   tensors[name]=tensor
+
+
+def shared_placeholder(dtype, dims, name):
+    if(name not in tensors):
+        tensors[name] = tf.placeholder(dtype, dims, name=name)
+    return tensors[name]
+
