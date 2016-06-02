@@ -10,13 +10,10 @@ import tensorflow as tf
 import matplotlib
 import matplotlib.pyplot as plt
 
-import tarfile
-
 from tensorflow.python.framework import ops
 
-from six.moves import urllib
-
 from tensorflow.models.image.cifar10 import cifar10_input
+import shared.cifar_utils as cifar_utils
 
 start=.00001
 end=.01
@@ -37,7 +34,7 @@ hc.set("batch_size", 64)
 hc.set("model", "255bits/cifar-gan")
 hc.set("version", "0.0.1")
 
-X_DIMS=[24,24]
+X_DIMS=[32,32]
 Y_DIMS=10
 
 
@@ -87,10 +84,11 @@ def discriminator(config, x, reuse=False):
     return result, last_layer
 
 
-def create(config):
+def create(config, eval_data=False):
     batch_size = config["batch_size"]
-    x = tf.placeholder(tf.float32, [batch_size, X_DIMS[0], X_DIMS[1], 3], name="x")
-    y = tf.placeholder(tf.float32, [batch_size, Y_DIMS], name="y")
+    x,y = cifar_utils.inputs(eval_data=eval_data,data_dir="/tmp/cifar/cifar-10-batches-bin",batch_size=config['batch_size'])
+    y = tf.one_hot(tf.cast(y,tf.int64), Y_DIMS, 1.0, 0.0)
+    print(y)
 
     d_real, d_last_layer = discriminator(config,x)
     g = generator(config, y)
@@ -127,9 +125,7 @@ def create(config):
     set_tensor("d_fake", tf.reduce_mean(d_fake))
     set_tensor("d_real", tf.reduce_mean(d_real))
 
-def train(sess, config, x_input, y_input):
-    x = get_tensor("x")
-    y = get_tensor("y")
+def train(sess, config):
     g_loss = get_tensor("g_loss")
     d_loss = get_tensor("d_loss")
     d_real_loss = get_tensor("d_real_loss")
@@ -137,8 +133,8 @@ def train(sess, config, x_input, y_input):
     g_optimizer = get_tensor("g_optimizer")
     d_optimizer = get_tensor("d_optimizer")
 
-    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss], feed_dict={x:x_input, y:y_input})
-    _, g_cost = sess.run([g_optimizer, g_loss], feed_dict={x:x_input, y:y_input})
+    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss])
+    _, g_cost = sess.run([g_optimizer, g_loss])
 
     print("g cost %.2f d cost %.2f real %.2f fake %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost))
 
@@ -179,36 +175,14 @@ def plot_mnist_digit(config, image, file):
     #plt.suptitle(config)
     plt.savefig(file)
 
-
-DATA_URL = 'http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz'
-
-def maybe_download_and_extract():
-  """Download and extract the tarball from Alex's website."""
-  dest_directory = "/tmp/cifar"
-  if not os.path.exists(dest_directory):
-    os.makedirs(dest_directory)
-  filename = DATA_URL.split('/')[-1]
-  filepath = os.path.join(dest_directory, filename)
-  if not os.path.exists(filepath):
-    def _progress(count, block_size, total_size):
-      sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
-          float(count * block_size) / float(total_size) * 100.0))
-      sys.stdout.flush()
-    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
-    print()
-    statinfo = os.stat(filepath)
-    print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
-    tarfile.open(filepath, 'r:gz').extractall(dest_directory)
-
 def epoch(sess, config):
     batch_size = config["batch_size"]
     n_samples =  cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
-        x,y = cifar10_input.inputs(eval_data=False,data_dir="/tmp/cifar/cifar-10-batches-bin",batch_size=config['batch_size'])
-        print("epoch",x)
+        print("epoch", i)
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
-        train(sess, config, x, y)
+        train(sess, config)
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
@@ -216,21 +190,23 @@ def test_config(sess, config):
     total_batch = int(n_samples / batch_size)
     results = []
     for i in range(total_batch):
-        x,y = cifar10_input.inputs(eval_data=True,data_dir="/tmp/cifar/cifar-10-batches-bin",batch_size=config['batch_size'])
         x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
-        results.append(test(sess, config, x, y))
+        results.append(test(sess, config))
     return results
 
 print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
-maybe_download_and_extract()
+cifar_utils.maybe_download_and_extract()
 for config in hc.configs(100):
     sess = tf.Session()
     print("Testing configuration", config)
+    print("TODO: TEST BROKEN")
     graph = create(config)
     init = tf.initialize_all_variables()
     sess.run(init)
+
+    tf.train.start_queue_runners(sess=sess)
     for i in range(10):
         epoch(sess, config)
     results = test_config(sess, config)
