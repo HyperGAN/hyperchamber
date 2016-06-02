@@ -27,9 +27,13 @@ conv_d_layers = [[4, 8]]
 hc.permute.set("conv_g_layers", conv_g_layers)
 hc.permute.set("conv_d_layers", conv_d_layers)
 
-hc.permute.set("z_dim", [49, 32, 16])
-hc.permute.set("hint_layers", [[16]])
+hc.permute.set("z_lin_layer", [49, 16, 25, 36, 64, 81, 100])
+hc.permute.set("z_dim", [49])
+hc.permute.set("hint_layers", [[16, 1, 2, 4]])
 
+hc.permute.set("dropout",list(np.linspace(0.5, 1, num=10)) )
+hc.permute.set("regularize", [False, True])
+hc.permute.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
 hc.set("batch_size", 64)
 hc.set("model", "255bits/mnist-gan-example")
 hc.set("version", "0.0.1")
@@ -113,6 +117,21 @@ def create(config):
     g_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols))
     d_loss = tf.reduce_mean(0.5*d_fake_loss + 0.5*d_real_loss)
 
+    if config['regularize']:
+        ws = None
+        if config['z_dim'] != None:
+            with tf.variable_scope("g_input_proj"):
+                tf.get_variable_scope().reuse_variables()
+                ws = tf.get_variable('Matrix')
+        else:
+            with tf.variable_scope("g_conv_0"):
+                tf.get_variable_scope().reuse_variables()
+                ws = tf.get_variable('w')
+        lam = config['regularize_lambda']
+        g_loss += tf.reduce_mean(lam*tf.square(ws))
+
+
+
     g_vars = [var for var in tf.trainable_variables() if 'g_' in var.name]
     d_vars = [var for var in tf.trainable_variables() if 'd_' in var.name]
 
@@ -163,16 +182,21 @@ def test(sess, config, x_input, y_input):
     return g_cost,d_fake_cost, d_real_cost
 
 
-def sample(sess, config):
+
+def split_sample(n, sample):
+    return [np.reshape(sample[0+i:1+i], [X_DIMS[0],X_DIMS[1]]) for i in range(n)]
+def samples(sess, config):
     generator = get_tensor("g")
     y = get_tensor("y")
     x = get_tensor("x")
+    #rand = np.tile([0,1,2,3,4,5,6,7,8,9],config['batch_size'])[0:config['batch_size']]
     rand = np.random.randint(0,10, size=config['batch_size'])
+
     random_one_hot = np.eye(10)[rand]
     x_input = np.random.uniform(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],1])
     sample = sess.run(generator, feed_dict={x:x_input, y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
-    return np.reshape(sample[0:4], [X_DIMS[0]*4,X_DIMS[1]])
+    return split_sample(10, sample)
 
 def plot_mnist_digit(config, image, file):
     """ Plot a single MNIST image."""
@@ -207,7 +231,7 @@ def test_config(sess, config):
 print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
-for config in hc.configs(100):
+for config in hc.configs(1000):
     sess = tf.Session()
     print("Testing configuration", config)
     graph = create(config)
@@ -229,12 +253,14 @@ for config in hc.configs(100):
     # calculate G.ranking = reduce_mean(g_loss) * D.difficulty
     ranking = g_loss * (1.0-difficulty)
 
-    s = sample(sess, config)
-    sample_file = "samples/config-"+str(j)+".png"
-    plot_mnist_digit(config, s, sample_file)
-
-    hc.io.sample(config, [sample_file])
-    j+=1
+    sample = samples(sess, config)
+    sample_list = []
+    for s in sample:
+        sample_file = "samples/config-"+str(j)+".png"
+        plot_mnist_digit(config, s, sample_file)
+        sample_list.append(sample_file)
+        j+=1
+    hc.io.sample(config, sample_list)
     results =  {
         'difficulty':float(difficulty),
         'ranking':float(ranking),
