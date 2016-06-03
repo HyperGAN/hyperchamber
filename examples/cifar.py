@@ -21,16 +21,17 @@ num=20
 hc.permute.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.permute.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
-conv_g_layers = [[10, 1]]
+conv_g_layers = [[64*4, 64*2, 1]]
 
-conv_d_layers = [[4, 8]]
+conv_d_layers = [[64, 64*2, 64*4]]
 
 hc.permute.set("conv_g_layers", conv_g_layers)
 hc.permute.set("conv_d_layers", conv_d_layers)
 
-hc.permute.set("z_dim", [49])
+hc.permute.set("z_dim", [64*8])
 
-hc.set("batch_size", 64)
+BATCH_SIZE=64
+hc.set("batch_size", BATCH_SIZE)
 hc.set("model", "255bits/cifar-gan")
 hc.set("version", "0.0.1")
 
@@ -46,7 +47,7 @@ def generator(config, y):
     #result = tf.nn.dropout(result, 0.7)
 
     if config['conv_g_layers']:
-        result = tf.reshape(result, [config['batch_size'], 7,7,1])
+        result = tf.reshape(result, [config['batch_size'], 4,4,config['z_dim']//16])
         for i, layer in enumerate(config['conv_g_layers']):
             j=int(result.get_shape()[1]*2)
             k=int(result.get_shape()[2]*2)
@@ -58,6 +59,7 @@ def generator(config, y):
         for i, layer in enumerate(config['g_layers']):
             result = linear(result, layer, scope="g_linear_"+str(i))
             result = tf.nn.sigmoid(result)
+
     if(result.get_shape()[1] != output_shape):
         result = linear(result, output_shape, scope="g_proj")
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0], X_DIMS[1], 3])
@@ -84,9 +86,8 @@ def discriminator(config, x, reuse=False):
     return result, last_layer
 
 
-def create(config, eval_data=False):
+def create(config, x,y):
     batch_size = config["batch_size"]
-    x,y = cifar_utils.inputs(eval_data=eval_data,data_dir="/tmp/cifar/cifar-10-batches-bin",batch_size=config['batch_size'])
     y = tf.one_hot(tf.cast(y,tf.int64), Y_DIMS, 1.0, 0.0)
     print(y)
 
@@ -153,17 +154,24 @@ def test(sess, config, x_input, y_input):
     #print("test g_loss %.2f d_fake %.2f d_loss %.2f" % (g_cost, d_fake_cost, d_real_cost))
     return g_cost,d_fake_cost, d_real_cost
 
+def sample_input(sess, config):
+    x = get_tensor("x")
+    sample = sess.run(x)
+    return sample[0]
 
-def sample(sess, config):
+
+def split_sample(n, sample):
+    return [np.reshape(sample[0+i:1+i], [X_DIMS[0],X_DIMS[1], 3]) for i in range(n)]
+def samples(sess, config):
     generator = get_tensor("g")
     y = get_tensor("y")
     x = get_tensor("x")
     rand = np.random.randint(0,10, size=config['batch_size'])
     random_one_hot = np.eye(10)[rand]
-    x_input = np.random.uniform(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],1])
+    x_input = np.random.uniform(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],3])
     sample = sess.run(generator, feed_dict={x:x_input, y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
-    return np.reshape(sample[0:4], [X_DIMS[0]*4,X_DIMS[1]])
+    return split_sample(10, sample)
 
 def plot_mnist_digit(config, image, file):
     """ Plot a single MNIST image."""
@@ -180,13 +188,12 @@ def epoch(sess, config):
     n_samples =  cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
-        print("epoch", i)
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         train(sess, config)
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
-    n_samples = mnist.test.num_examples
+    n_samples =  cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
     total_batch = int(n_samples / batch_size)
     results = []
     for i in range(total_batch):
@@ -197,52 +204,63 @@ def test_config(sess, config):
 print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
+k=0
 cifar_utils.maybe_download_and_extract()
 for config in hc.configs(100):
-    sess = tf.Session()
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
-    graph = create(config)
+    sess = tf.Session()
+    x,y = cifar_utils.inputs(eval_data=False,data_dir="/tmp/cifar/cifar-10-batches-bin",batch_size=BATCH_SIZE)
+    graph = create(config, x,y)
     init = tf.initialize_all_variables()
     sess.run(init)
 
     tf.train.start_queue_runners(sess=sess)
+
     for i in range(10):
         epoch(sess, config)
-    results = test_config(sess, config)
-    loss = np.array(results)
-    #results = np.reshape(results, [results.shape[1], results.shape[0]])
-    g_loss = [g for g,_,_ in loss]
-    g_loss = np.mean(g_loss)
-    d_fake = [d_ for _,d_,_ in loss]
-    d_fake = np.mean(d_fake)
-    d_real = [d for _,_,d in loss]
-    d_real = np.mean(d_real)
-    # calculate D.difficulty = reduce_mean(d_loss_fake) - reduce_mean(d_loss_real)
-    difficulty = d_real * (1-d_fake)
-    # calculate G.ranking = reduce_mean(g_loss) * D.difficulty
-    ranking = g_loss * (1.0-difficulty)
+    #  results = test_config(sess, config)
+    #  loss = np.array(results)
+    #  #results = np.reshape(results, [results.shape[1], results.shape[0]])
+    #  g_loss = [g for g,_,_ in loss]
+    #  g_loss = np.mean(g_loss)
+    #  d_fake = [d_ for _,d_,_ in loss]
+    #  d_fake = np.mean(d_fake)
+    #  d_real = [d for _,_,d in loss]
+    #  d_real = np.mean(d_real)
+    #  # calculate D.difficulty = reduce_mean(d_loss_fake) - reduce_mean(d_loss_real)
+    #  difficulty = d_real * (1-d_fake)
+    #  # calculate G.ranking = reduce_mean(g_loss) * D.difficulty
+    #  ranking = g_loss * (1.0-difficulty)
 
-    s = sample(sess, config)
-    sample_file = "samples/config-"+str(j)+".png"
-    plot_mnist_digit(config, s, sample_file)
+    #x = sample_input(sess, config)
+    #sample_file = "samples/input-"+str(j)+".png"
+    #cifar_utils.plot(config, x, sample_file)
+    
+    sample = samples(sess, config)
+    sample_list = []
+    for s in sample:
+        sample_file = "samples/config-"+str(j)+".png"
+        cifar_utils.plot(config, s, sample_file)
+        sample_list.append(sample_file)
+        j+=1
+    hc.io.sample(config, sample_list)
 
-    hc.io.sample(config, [sample_file])
-    j+=1
+    ranking = 10000
     results =  {
-        'difficulty':float(difficulty),
+    #    'difficulty':float(difficulty),
         'ranking':float(ranking),
-        'g_loss':float(g_loss),
-        'd_fake':float(d_fake),
-        'd_real':float(d_real),
+    #    'g_loss':float(g_loss),
+    #    'd_fake':float(d_fake),
+    #    'd_real':float(d_real),
         }
-    print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
-    print(type(ranking))
+    #print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
     hc.io.record(config, results)
-    ops.reset_default_graph()
+    #with g.as_default():
+    #    tf.reset_default_graph()
+    sess.close()
 
 
-sess.close()
 def by_ranking(x):
     config,result = x
     return result['ranking']

@@ -6,6 +6,10 @@ import sys
 
 from six.moves import xrange 
 from six.moves import urllib
+import matplotlib
+import matplotlib.pyplot as plt
+
+from scipy.misc import imsave
 
 from tensorflow.models.image.cifar10 import cifar10_input
 
@@ -82,5 +86,10 @@ def maybe_download_and_extract():
     statinfo = os.stat(filepath)
     print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
     tarfile.open(filepath, 'r:gz').extractall(dest_directory)
+
+def plot(config, image, file):
+    """ Plot a single CIFAR image."""
+    imsave(file, image)
+
 
 
