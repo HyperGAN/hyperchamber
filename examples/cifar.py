@@ -256,8 +256,7 @@ for config in hc.configs(100):
         }
     #print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
     hc.io.record(config, results)
-    #with g.as_default():
-    #    tf.reset_default_graph()
+    tf.reset_default_graph()
     sess.close()
 
 

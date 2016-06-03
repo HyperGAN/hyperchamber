@@ -15,12 +15,25 @@ def sample(config, images):
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
   headers = {"config": json.dumps(config)}
-  r = requests.post(url, files=multiple_files, headers=headers, timeout=5)
-  return r.text
+  try:
+      r = requests.post(url, files=multiple_files, headers=headers, timeout=5)
+      return r.text
+  except:
+      e = sys.exc_info()[0]
+      print("Error while calling hyperchamber - ", e)
+      return None
 
-def record(config, result):
+def record(config, result, max_retries=10):
   """Records results on hyperchamber.io.  Used when you are done testing a config."""
   url = get_api_path('run.json')
   data = {'config': config, 'result': result}
-  r = requests.post(url, json=data, timeout=30)
-  return r.text
+  retries = 0
+  while(retries < max_retries):
+      try:
+          r = requests.post(url, json=data, timeout=30)
+          return r.text
+      except:
+          e = sys.exc_info()[0]
+          print("Error while calling hyperchamber - retrying ", e)
+          retries += 1
+
