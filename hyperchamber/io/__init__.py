@@ -41,7 +41,7 @@ def record(config, result, max_retries=10):
   retries = 0
   while(retries < max_retries):
       try:
-          r = requests.post(url, json=data, timeout=30)
+          r = requests.post(url, data=json.dumps(data, cls=HCEncoder), headers={'Content-Type': 'application/json'}, timeout=30)
           return r.text
       except:
           e = sys.exc_info()[0]
