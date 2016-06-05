@@ -36,6 +36,11 @@ hc.permute.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
 hc.permute.set("g_batch_norm", [True])
 hc.permute.set("d_batch_norm", [True])
 
+hc.permute.set("d_activation", [tf.tanh, tf.nn.relu, tf.nn.relu6, tf.nn.softplus, tf.nn.softsign, tf.sigmoid]);
+hc.permute.set("g_activation", [tf.tanh, tf.nn.relu, tf.nn.relu6, tf.nn.softplus, tf.nn.softsign, tf.sigmoid]);
+
+hc.set("epochs", 100)
+
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
 hc.set("model", "255bits/cifar-gan")
@@ -57,7 +62,7 @@ def generator(config, y):
         #result = tf.nn.dropout(result, 0.7)
         if(config['g_batch_norm']):
             result = batch_norm(result, name='g_lin_bn')
-        result = tf.nn.relu(result)
+        result = config['g_activation'](result)
         for i, layer in enumerate(config['conv_g_layers']):
             j=int(result.get_shape()[1]*2)
             k=int(result.get_shape()[2]*2)
@@ -65,7 +70,7 @@ def generator(config, y):
             result = deconv2d(result, output, scope="g_conv_"+str(i))
             if(config['g_batch_norm']):
                 result = batch_norm(result, name='g_conv_bn_'+str(i))
-            result = tf.nn.tanh(result)
+            result = config['g_activation'](result)
         result = tf.reshape(result,[config['batch_size'], -1])
 
     result = linear(result, output_shape, scope="g_proj")
@@ -83,13 +88,15 @@ def discriminator(config, x, reuse=False):
         for i, layer in enumerate(config['conv_d_layers']):
             result = conv2d(result, layer, scope='d_conv'+str(i))
             if(config['d_batch_norm']):
-                result = batch_norm(result, name='d_conv_bn_'+str(i))
+                if(i!=0):
+                    result = batch_norm(result, name='d_conv_bn_'+str(i))
             result = tf.nn.relu(result)
         result = tf.reshape(x, [config["batch_size"], -1])
 
     #result = tf.nn.dropout(result, 0.7)
     last_layer = result
     result = linear(result, 11, scope="d_proj")
+
     return result, last_layer
 
 

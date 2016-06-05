@@ -1,6 +1,17 @@
 import requests
 import json
 
+import sys
+
+from json import JSONEncoder
+
+class HCEncoder(JSONEncoder):
+  def default(self, o):
+    if(hasattr(o, '__call__')): # is function
+      return "function:" +o.__module__+"."+o.__name__
+    else:
+      return o.__dict__    
+
 def get_api_path(end):
   return "https://hyperchamber.255bits.com/api/v1/"+end
 
@@ -14,7 +25,7 @@ def sample(config, images):
   multiple_files = []
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
-  headers = {"config": json.dumps(config)}
+  headers = {"config": json.dumps(config, cls=HCEncoder)}
   try:
       r = requests.post(url, files=multiple_files, headers=headers, timeout=5)
       return r.text
