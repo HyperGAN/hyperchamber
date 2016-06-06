@@ -43,14 +43,15 @@ def configs(max_configs=1, offset=None, createUUID=True):
     if(len(store)==0 and len(permute.store)==0):
         return []
 
-    if(offset == None):
-      offset = max(0, random.randint(0, count_configs() - max_configs))
     configs = []
     total = count_configs()
     permute_configs = permute.count_configs(1)
     singular_configs = total // permute_configs
 
     for i in range(max_configs):
+        if(offset == None):
+          offset = max(0, random.randint(0, count_configs() - max_configs))
+          print("Offset: ", offset)
         # get an element to index over
         if(offset+i >= total):
             break
