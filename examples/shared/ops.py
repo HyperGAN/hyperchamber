@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 
 def deconv2d(input_, output_shape,
-        k_h=3, k_w=3, d_h=2, d_w=2, stddev=0.02, biasstart=0.0, padding='SAME',
+        k_h=3, k_w=3, d_h=2, d_w=2, stddev=0.02, bias_start=0.0, padding='SAME',
         scope="deconv2d", with_w=False,reuse=False):
     with tf.variable_scope(scope):
         if(reuse):
@@ -18,7 +18,7 @@ def deconv2d(input_, output_shape,
         deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape, padding=padding,
                 strides=[1, d_h, d_w, 1])
 
-        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(biasstart))
+        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(bias_start))
         deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
 
         if with_w:
@@ -94,6 +94,12 @@ class batch_norm_(object):
                 x, mean, var, self.beta, self.gamma, self.epsilon, scale_after_normalization=True)
 
         return normed
+
+def lrelu(x, leak=0.2):
+    f1 = 0.5 * (1 + leak)
+    f2 = 0.5 * (1 - leak)
+    return f1 * x + f2 * abs(x)
+
 
 tensors = {}
 def get_tensor(name, graph=tf.get_default_graph(), isOperation=False):
