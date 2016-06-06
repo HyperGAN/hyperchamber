@@ -13,8 +13,8 @@ class HCEncoder(JSONEncoder):
       return o.__dict__    
 
 def get_api_path(end):
-  return "http://localhost:3000/api/v1/"+end
-  #return "https://hyperchamber.255bits.com/api/v1/"+end
+  #return "http://localhost:3000/api/v1/"+end
+  return "https://hyperchamber.255bits.com/api/v1/"+end
 
 def apikey(apikey):
   """Sets up your api key."""
