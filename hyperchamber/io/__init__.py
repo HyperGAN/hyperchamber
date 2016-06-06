@@ -13,19 +13,23 @@ class HCEncoder(JSONEncoder):
       return o.__dict__    
 
 def get_api_path(end):
-  return "https://hyperchamber.255bits.com/api/v1/"+end
+  return "http://localhost:3000/api/v1/"+end
+  #return "https://hyperchamber.255bits.com/api/v1/"+end
 
 def apikey(apikey):
   """Sets up your api key."""
   print("TODO: Api keys")
 
-def sample(config, images):
-  """Upload a series of images.  Images are ignored if the rate limit is hit."""
+def sample(config, samples):
+  """Upload a series of samples.  Each sample has keys 'image' and 'label'. 
+  Images are ignored if the rate limit is hit."""
   url = get_api_path('intrinsic.json')
   multiple_files = []
+  images = [s['image'] for s in samples]
+  labels = [s['label'] for s in samples]
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
-  headers = {"config": json.dumps(config, cls=HCEncoder)}
+  headers = {"config": json.dumps(config, cls=HCEncoder), "labels": json.dumps(labels)}
   try:
       r = requests.post(url, files=multiple_files, headers=headers, timeout=30)
       return r.text

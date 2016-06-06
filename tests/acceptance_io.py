@@ -29,7 +29,7 @@ hc.set("test", "acceptance_io")
 for config in hc.configs(1):
   filenames = [ "/tmp/acceptance_io_"+str(i)+".png" for i in range(10) ]
   graphs = [test_graph(config, filename, i) for i, filename in enumerate(filenames)]
-  hc.io.sample(config, filenames)
+  hc.io.sample(config, [{'image':f, 'label':f} for f in filenames])
 
   hc.io.record(config, {'ranking': 1})
   print("Stored config", config)
