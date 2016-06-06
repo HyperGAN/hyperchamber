@@ -5,7 +5,7 @@ import numpy as np
 import hyperchamber as hc
 import matplotlib.pyplot as plt
 
-def test_graph(config, filename):
+def test_graph(config, filename, n):
   plt.rcdefaults()
 
   people = ('Tom', 'Dick', 'Harry', 'Slim', 'Jim')
@@ -15,21 +15,21 @@ def test_graph(config, filename):
 
   plt.barh(y_pos, performance, xerr=error, align='center', alpha=0.4)
   plt.yticks(y_pos, people)
-  plt.xlabel('Performance')
+  plt.xlabel("Step "+str(n))
   plt.title('Are intrinsic measurements working?')
 
   plt.savefig(filename)
 
-#hc.io.apikey("TODO")
+hc.io.apikey("TESTAPIKEY")
 
 hc.set("model", "255bits/acceptance_test")
 hc.set("version", "0.0.1")
 hc.set("test", "acceptance_io")
 
 for config in hc.configs(1):
-  filename = "/tmp/acceptance_io.png"
-  test_graph(config, filename)
-  hc.io.sample(config, [filename])
+  filenames = [ "/tmp/acceptance_io_"+str(i)+".png" for i in range(10) ]
+  graphs = [test_graph(config, filename, i) for i, filename in enumerate(filenames)]
+  hc.io.sample(config, filenames)
 
   hc.io.record(config, {'ranking': 1})
   print("Stored config", config)

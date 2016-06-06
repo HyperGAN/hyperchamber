@@ -15,7 +15,7 @@ def sample(config, images):
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
   headers = {"config": json.dumps(config)}
-  r = requests.post(url, files=multiple_files, headers=headers, timeout=5)
+  r = requests.post(url, files=multiple_files, headers=headers, timeout=30)
   return r.text
 
 def record(config, result):
