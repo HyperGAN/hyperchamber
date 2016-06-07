@@ -50,17 +50,15 @@ def configs(max_configs=1, offset=None, createUUID=True):
 
     for i in range(max_configs):
         if(offset == None):
-          offset = max(0, random.randint(0, count_configs() - max_configs))
+          offset = max(0, random.randint(0, count_configs()))
           print("Offset: ", offset)
         # get an element to index over
-        if(offset+i >= total):
-            break
 
         config = {}
         for k in store:
-            config[k]=get_config_value(k, (offset+i)//permute_configs)
+            config[k]=get_config_value(k, (offset)//permute_configs)
 
-        more = permute.get_config((offset+i) % permute_configs)
+        more = permute.get_config((offset) % permute_configs)
         config.update(more)
         if(createUUID):
           config["uuid"]=uuid.uuid4().hex

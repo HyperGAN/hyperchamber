@@ -11,7 +11,13 @@ class HCEncoder(JSONEncoder):
     if(hasattr(o, '__call__')): # is function
       return "function:" +o.__module__+"."+o.__name__
     else:
-      return o.__dict__    
+      try:
+          return o.__dict__    
+      except AttributeError:
+          try:
+             return str(o)
+          except AttributeError:
+              return super(o)
 
 def get_api_path(end):
   #return "http://localhost:3000/api/v1/"+end
