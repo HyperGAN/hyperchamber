@@ -48,7 +48,7 @@ hc.permute.set("g_encoder", [True])
 
 hc.permute.set("g_lrelu_leak", np.linspace(0.4,0.9, num=5))
 
-hc.permute.set("mse_loss", [True])
+hc.permute.set("mse_loss", [False, True])
 hc.permute.set("mse_lambda",list(np.linspace(0.0001, 1, num=30)))
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
@@ -387,7 +387,7 @@ for config in hc.configs(100):
 
     #tf.assign(x,train_x)
     #tf.assign(y,tf.one_hot(tf.cast(train_y,tf.int64), Y_DIMS, 1.0, 0.0))
-    for i in range(20):
+    for i in range(1000):
         epoch(sess, config)
         j=test_epoch(i, j, sess, config)
     #x.assign(test_x)

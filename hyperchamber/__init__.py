@@ -49,9 +49,9 @@ def configs(max_configs=1, offset=None, createUUID=True):
     singular_configs = total // permute_configs
 
     for i in range(max_configs):
-        if(offset == None):
-          offset = max(0, random.randint(0, count_configs()))
-          print("Offset: ", offset)
+      #  if(offset == None):
+        offset = max(0, random.randint(0, count_configs()))
+      #    print("Offset: ", offset)
         # get an element to index over
 
         config = {}
