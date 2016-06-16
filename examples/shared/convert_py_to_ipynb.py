@@ -1,6 +1,6 @@
 from nbformat import v3, v4
 
-with open("mnist.py") as fpin:
+with open("mnist-io.py") as fpin:
     text = fpin.read()
 
     nbook = v3.reads_py(text)
