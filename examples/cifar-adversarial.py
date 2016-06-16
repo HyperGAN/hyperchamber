@@ -320,6 +320,8 @@ def train(sess, config):
     #print(" mean %.2f max %.2f min %.2f" % (np.mean(x), np.max(x), np.min(x)))
     #print(" mean %.2f max %.2f min %.2f" % (np.mean(g), np.max(g), np.min(g)))
 
+    return d_cost, g_cost
+
 def test(sess, config):
     x = get_tensor("x")
     y = get_tensor("y")
@@ -372,7 +374,10 @@ def epoch(sess, config):
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
-        train(sess, config)
+        d_loss, g_loss = train(sess, config)
+        if(math.isnan(d_loss) or math.isnan(g_loss)):
+            return False
+    return True
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
@@ -462,8 +467,9 @@ for config in hc.configs(100):
 
     #tf.assign(x,train_x)
     #tf.assign(y,tf.one_hot(tf.cast(train_y,tf.int64), Y_DIMS, 1.0, 0.0))
-    for i in range(1000):
-        epoch(sess, config)
+    for i in range(10):
+        if(not epoch(sess, config)):
+            break
         j=test_epoch(i, j, sess, config)
     #x.assign(test_x)
     #y.assign(tf.one_hot(tf.cast(test_y,tf.int64), Y_DIMS, 1.0, 0.0))
