@@ -32,7 +32,7 @@ conv_g_layers.append([32*2,32])
 
 conv_d_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
-g_encoder_layers = [[(i+30), (i+30)*2, (i+30)*4] for i in range(30)]
+g_encoder_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
 
 hc.permute.set("conv_g_layers", conv_g_layers)
 hc.permute.set("conv_d_layers", conv_d_layers)
@@ -47,7 +47,7 @@ hc.permute.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
 hc.permute.set("g_batch_norm", [True])
 hc.permute.set("d_batch_norm", [True])
 
-hc.permute.set("g_last_layer", ["lrelu"])
+hc.permute.set("g_last_layer", [None])
 
 hc.permute.set("g_encoder", [True])
 
@@ -104,8 +104,6 @@ def generator(config, y,z, reuse=False):
         pass
     elif(config['g_last_layer'] == "lrelu"):
         result = lrelu(result, config['g_lrelu_leak'])
-    elif(config['g_last_layer'] == 'tanh'):
-        result = tf.nn.tanh(result)
     return result
 
 def discriminator(config, x, z, reuse=False):
@@ -176,14 +174,14 @@ def xavier_init(fan_in, fan_out, constant=1):
                              minval=low, maxval=high, 
                              dtype=tf.float32)
 
-def approximate_z(config, x):
+def approximate_z(config, x, y):
     transfer_fct = config['transfer_fct']
     n_input = config['n_input']
     n_hidden_recog_1 = int(config['n_hidden_recog_1'])
     n_hidden_recog_2 = int(config['n_hidden_recog_2'])
     n_z = config['z_dim']
     weights = {
-            'h1': tf.get_variable('g_h1', initializer=xavier_init(n_input, n_hidden_recog_1)),
+            'h1': tf.get_variable('g_h1', initializer=xavier_init(n_input+Y_DIMS, n_hidden_recog_1)),
             'h2': tf.get_variable('g_h2', initializer=xavier_init(n_hidden_recog_1, n_hidden_recog_2)),
             'out_mean': tf.get_variable('g_out_mean', initializer=xavier_init(n_hidden_recog_2, n_z)),
             'out_log_sigma': tf.get_variable('g_out_log_sigma', initializer=xavier_init(n_hidden_recog_2, n_z)),
@@ -193,6 +191,8 @@ def approximate_z(config, x):
             'b_out_log_sigma': tf.get_variable('g_b_out_log_sigma', initializer=tf.zeros([n_z], dtype=tf.float32))
             }
     x = tf.reshape(x, [config['batch_size'], n_input])
+    y = tf.reshape(y, [config['batch_size'], Y_DIMS])
+    x = tf.concat(1,[x,y])
     layer_1 = transfer_fct(tf.add(tf.matmul(x, weights['h1']), 
                                        weights['b1'])) 
     layer_2 = transfer_fct(tf.add(tf.matmul(layer_1, weights['h2']), 
@@ -217,7 +217,7 @@ def create(config, x,y):
     #x = x/tf.reduce_max(tf.abs(x), 0)
     encoded_z = encoder(config, x,y)
     d_real, d_last_layer = discriminator(config,x, encoded_z)
-    z = approximate_z(config, x)
+    z = approximate_z(config, x, y)
 
 
     print("Build generator")
