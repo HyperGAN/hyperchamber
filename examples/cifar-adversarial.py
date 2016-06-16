@@ -28,7 +28,6 @@ hc.permute.set("transfer_fct", [tf.tanh, tf.nn.elu, tf.nn.relu, tf.nn.relu6, tf.
 hc.set("n_input", 32*32*3)
 
 conv_g_layers = [[(i+20)*4, (i+20)*2, 3] for i in range(60)]
-conv_g_layers.append([32*2,32])
 
 conv_d_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
@@ -58,9 +57,11 @@ hc.permute.set("g_lrelu_leak", np.linspace(0.6,0.9, num=5))
 hc.permute.set("mse_loss", [False])
 hc.permute.set("mse_lambda",list(np.linspace(0.0001, 1, num=30)))
 
+hc.permute.set("latent_lambda", list(np.linspace(0.0001, .2, num=30)))
+
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
-hc.set("model", "255bits/cifar-gan-mse")
+hc.set("model", "255bits/cifar-gan-nomse-epoch10")
 hc.set("version", "0.0.1")
 
 
@@ -208,7 +209,7 @@ def approximate_z(config, x, y):
     eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
                            dtype=tf.float32)
 
-    return tf.add(mu, tf.mul(sigma, eps))
+    return tf.add(mu, tf.mul(sigma, eps)), mu, sigma
 
 def create(config, x,y):
     batch_size = config["batch_size"]
@@ -217,7 +218,7 @@ def create(config, x,y):
     #x = x/tf.reduce_max(tf.abs(x), 0)
     encoded_z = encoder(config, x,y)
     d_real, d_last_layer = discriminator(config,x, encoded_z)
-    z = approximate_z(config, x, y)
+    z, z_mu, z_sigma = approximate_z(config, x, y)
 
 
     print("Build generator")
@@ -240,7 +241,12 @@ def create(config, x,y):
 
         g_loss_softmax = tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols)
         g_loss_encoder = tf.nn.softmax_cross_entropy_with_logits(d_real, fake_symbol)
-        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
+
+        latent_loss = -config['latent_lambda'] * tf.reduce_mean(1 + z_sigma
+                                           - z_mu
+                                           - tf.exp(z_sigma), 1)
+
+        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder+latent_loss)
         d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
     else:
         fake_symbol = 0
@@ -467,16 +473,19 @@ for config in hc.configs(100):
 
     #tf.assign(x,train_x)
     #tf.assign(y,tf.one_hot(tf.cast(train_y,tf.int64), Y_DIMS, 1.0, 0.0))
-    for i in range(10):
+    sampled=False
+    for i in range(1000):
         if(not epoch(sess, config)):
             break
         j=test_epoch(i, j, sess, config)
+        sampled=True
     #x.assign(test_x)
     #y.assign(tf.one_hot(tf.cast(test_y,tf.int64), Y_DIMS, 1.0, 0.0))
     #print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
 
     print("Recording run...")
-    record_run(config)
+    if(sampled):
+        record_run(config)
     #with g.as_default():
     tf.reset_default_graph()
     sess.close()
