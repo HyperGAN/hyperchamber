@@ -16,12 +16,18 @@ from tensorflow.models.image.cifar10 import cifar10_input
 import shared.cifar_utils as cifar_utils
 
 start=.0001
-end=.01
+end=.0005
 num=20
 hc.permute.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.permute.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
-conv_g_layers = [[(i+15)*4, (i+15)*2, 3] for i in range(30)]
+hc.permute.set("n_hidden_recog_1", list(np.linspace(100, 1000, num=10)))
+hc.permute.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=10)))
+hc.permute.set("transfer_fct", [tf.tanh, tf.nn.elu, tf.nn.relu, tf.nn.relu6, tf.nn.softplus, tf.nn.softsign]);
+
+hc.set("n_input", 32*32*3)
+
+conv_g_layers = [[(i+20)*4, (i+20)*2, 3] for i in range(60)]
 conv_g_layers.append([32*2,32])
 
 conv_d_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
@@ -45,11 +51,13 @@ hc.permute.set("g_last_layer", ["lrelu"])
 
 hc.permute.set("g_encoder", [True])
 
+hc.permute.set("loss", ['sigmoid', 'softmax'])
 
-hc.permute.set("g_lrelu_leak", np.linspace(0.4,0.9, num=5))
+hc.permute.set("g_lrelu_leak", np.linspace(0.6,0.9, num=5))
 
-hc.permute.set("mse_loss", [False, True])
+hc.permute.set("mse_loss", [False])
 hc.permute.set("mse_lambda",list(np.linspace(0.0001, 1, num=30)))
+
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
 hc.set("model", "255bits/cifar-gan-mse")
@@ -114,12 +122,15 @@ def discriminator(config, x, z, reuse=False):
             result = conv2d(result, layer, scope='d_conv'+str(i))
             if(config['d_batch_norm']):
                 result = batch_norm(result, name='d_conv_bn_'+str(i))
-            result = lrelu(result)
+            result = tf.nn.relu(result)
         result = tf.reshape(x, [config["batch_size"], -1])
 
     #result = tf.nn.dropout(result, 0.7)
     last_layer = result
-    result = linear(result, 11, scope="d_proj")
+    if(config['loss'] == 'softmax'):
+        result = linear(result, 11, scope="d_proj")
+    else:
+        result = linear(result, 1, scope="d_proj")
 
     return result, last_layer
 
@@ -131,8 +142,9 @@ def encoder(config, x,y):
     y = linear(y, int(x.get_shape()[2]), scope='g_y')
     y = tf.reshape(y, [config['batch_size'], 1, int(x.get_shape()[2])])
     result = tf.concat(1, [x,y])
+    result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
+
     if config['g_encode_layers']:
-        result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
         for i, layer in enumerate(config['g_encode_layers']):
             result = conv2d(result, layer, scope='g_enc_conv'+str(i))
             if(config['d_batch_norm']):
@@ -153,7 +165,50 @@ def encoder(config, x,y):
             result = batch_norm(result, name='g_enc_proj_bn')
         result = tf.reshape(result, [config['batch_size'], -1])
 
-    return tf.nn.tanh(result)
+    return result
+
+def xavier_init(fan_in, fan_out, constant=1): 
+    """ Xavier initialization of network weights"""
+    # https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
+    low = -constant*np.sqrt(6.0/(fan_in + fan_out)) 
+    high = constant*np.sqrt(6.0/(fan_in + fan_out))
+    return tf.random_uniform((fan_in, fan_out), 
+                             minval=low, maxval=high, 
+                             dtype=tf.float32)
+
+def approximate_z(config, x):
+    transfer_fct = config['transfer_fct']
+    n_input = config['n_input']
+    n_hidden_recog_1 = int(config['n_hidden_recog_1'])
+    n_hidden_recog_2 = int(config['n_hidden_recog_2'])
+    n_z = config['z_dim']
+    weights = {
+            'h1': tf.get_variable('g_h1', initializer=xavier_init(n_input, n_hidden_recog_1)),
+            'h2': tf.get_variable('g_h2', initializer=xavier_init(n_hidden_recog_1, n_hidden_recog_2)),
+            'out_mean': tf.get_variable('g_out_mean', initializer=xavier_init(n_hidden_recog_2, n_z)),
+            'out_log_sigma': tf.get_variable('g_out_log_sigma', initializer=xavier_init(n_hidden_recog_2, n_z)),
+            'b1': tf.get_variable('g_b1', initializer=tf.zeros([n_hidden_recog_1], dtype=tf.float32)),
+            'b2': tf.get_variable('g_b2', initializer=tf.zeros([n_hidden_recog_2], dtype=tf.float32)),
+            'b_out_mean': tf.get_variable('g_b_out_mean', initializer=tf.zeros([n_z], dtype=tf.float32)),
+            'b_out_log_sigma': tf.get_variable('g_b_out_log_sigma', initializer=tf.zeros([n_z], dtype=tf.float32))
+            }
+    x = tf.reshape(x, [config['batch_size'], n_input])
+    layer_1 = transfer_fct(tf.add(tf.matmul(x, weights['h1']), 
+                                       weights['b1'])) 
+    layer_2 = transfer_fct(tf.add(tf.matmul(layer_1, weights['h2']), 
+                                       weights['b2'])) 
+    mu = tf.add(tf.matmul(layer_2, weights['out_mean']),
+                        weights['b_out_mean'])
+    sigma = \
+        tf.add(tf.matmul(layer_2, weights['out_log_sigma']), 
+               weights['b_out_log_sigma'])
+
+
+    n_z = config["z_dim"]
+    eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
+                           dtype=tf.float32)
+
+    return tf.add(mu, tf.mul(sigma, eps))
 
 def create(config, x,y):
     batch_size = config["batch_size"]
@@ -162,7 +217,9 @@ def create(config, x,y):
     #x = x/tf.reduce_max(tf.abs(x), 0)
     encoded_z = encoder(config, x,y)
     d_real, d_last_layer = discriminator(config,x, encoded_z)
-    z = tf.random_uniform([config["batch_size"], config['z_dim']],-1,1)
+    z = approximate_z(config, x)
+
+
     print("Build generator")
     g = generator(config, y, z)
     print("Build encoder")
@@ -171,19 +228,41 @@ def create(config, x,y):
     print("shape of z,encoded_z", z.get_shape(), encoded_z.get_shape())
     d_fake, _ = discriminator(config,g, z, reuse=True)
 
-    fake_symbol = tf.tile(tf.constant([0,0,0,0,0,0,0,0,0,0,1], dtype=tf.float32), [config['batch_size']])
-    fake_symbol = tf.reshape(fake_symbol, [config['batch_size'],11])
+    if(config['loss'] == 'softmax'):
+        fake_symbol = tf.tile(tf.constant([0,0,0,0,0,0,0,0,0,0,1], dtype=tf.float32), [config['batch_size']])
+        fake_symbol = tf.reshape(fake_symbol, [config['batch_size'],11])
 
-    real_symbols = tf.concat(1, [y, tf.zeros([config['batch_size'], 1])])
+        real_symbols = tf.concat(1, [y, tf.zeros([config['batch_size'], 1])])
 
 
-    d_fake_loss = tf.nn.softmax_cross_entropy_with_logits(d_fake, fake_symbol)
-    d_real_loss = tf.nn.softmax_cross_entropy_with_logits(d_real, real_symbols)
+        d_fake_loss = tf.nn.softmax_cross_entropy_with_logits(d_fake, fake_symbol)
+        d_real_loss = tf.nn.softmax_cross_entropy_with_logits(d_real, real_symbols)
 
-    g_loss_softmax = tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols)
-    g_loss_encoder = tf.nn.softmax_cross_entropy_with_logits(d_real, fake_symbol)
-    g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
-    d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
+        g_loss_softmax = tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols)
+        g_loss_encoder = tf.nn.softmax_cross_entropy_with_logits(d_real, fake_symbol)
+        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
+        d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
+    else:
+        fake_symbol = 0
+
+        #zeros = tf.zeros_like(d_fake)
+        #ones = tf.zeros_like(d_real)
+
+        #d_fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_fake, zeros)
+        #d_real_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_real, ones)
+
+        #g_loss_softmax = tf.nn.sigmoid_cross_entropy_with_logits(d_fake, ones)
+        #g_loss_encoder = tf.nn.sigmoid_cross_entropy_with_logits(d_real, zeros)
+        d_real = tf.nn.sigmoid(d_real)
+        d_fake = tf.nn.sigmoid(d_fake)
+        d_fake_loss = -tf.log(d_real)
+        d_real_loss =  -tf.log(1-d_fake)
+        g_loss_softmax = -tf.log(1-d_real)
+        g_loss_encoder = -tf.log(d_fake)
+        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
+        d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
+
+
 
     if config['regularize']:
         ws = None
@@ -215,8 +294,6 @@ def create(config, x,y):
     set_tensor("y", y)
     set_tensor("g_loss", g_loss)
     set_tensor("d_loss", d_loss)
-    set_tensor("d_fake_loss", tf.reduce_mean(tf.nn.softmax(d_fake) * (1-fake_symbol)))
-    set_tensor("d_real_loss", tf.reduce_mean(tf.nn.softmax(d_real) * (real_symbols)))
     set_tensor("g_optimizer", g_optimizer)
     set_tensor("d_optimizer", d_optimizer)
     set_tensor("mse_optimizer", mse_optimizer)
@@ -231,17 +308,15 @@ def train(sess, config):
     g = get_tensor('g')
     g_loss = get_tensor("g_loss")
     d_loss = get_tensor("d_loss")
-    d_real_loss = get_tensor("d_real_loss")
-    d_fake_loss = get_tensor("d_fake_loss")
     g_optimizer = get_tensor("g_optimizer")
     d_optimizer = get_tensor("d_optimizer")
     mse_optimizer = get_tensor("mse_optimizer")
     encoder_mse = get_tensor("encoder_mse")
-    _, d_cost, d_real_cost, d_fake_cost = sess.run([d_optimizer, d_loss, d_real_loss, d_fake_loss])
+    _, d_cost = sess.run([d_optimizer, d_loss])
     _, g_cost, x, g,e_loss = sess.run([g_optimizer, g_loss, x, g, encoder_mse])
     #_ = sess.run([mse_optimizer])
 
-    print("g cost %.2f d cost %.2f real %.2f fake %.2f encoder %.2f" % (g_cost, d_cost, d_real_cost, d_fake_cost, e_loss))
+    print("g cost %.2f d cost %.2f encoder %.2f" % (g_cost, d_cost,e_loss))
     #print(" mean %.2f max %.2f min %.2f" % (np.mean(x), np.max(x), np.min(x)))
     #print(" mean %.2f max %.2f min %.2f" % (np.mean(g), np.max(g), np.min(g)))
 
