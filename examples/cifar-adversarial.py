@@ -166,15 +166,6 @@ def encoder(config, x,y):
 
     return result
 
-def xavier_init(fan_in, fan_out, constant=1): 
-    """ Xavier initialization of network weights"""
-    # https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
-    low = -constant*np.sqrt(6.0/(fan_in + fan_out)) 
-    high = constant*np.sqrt(6.0/(fan_in + fan_out))
-    return tf.random_uniform((fan_in, fan_out), 
-                             minval=low, maxval=high, 
-                             dtype=tf.float32)
-
 def approximate_z(config, x, y):
     transfer_fct = config['transfer_fct']
     n_input = config['n_input']
@@ -182,10 +173,10 @@ def approximate_z(config, x, y):
     n_hidden_recog_2 = int(config['n_hidden_recog_2'])
     n_z = config['z_dim']
     weights = {
-            'h1': tf.get_variable('g_h1', initializer=xavier_init(n_input+Y_DIMS, n_hidden_recog_1)),
-            'h2': tf.get_variable('g_h2', initializer=xavier_init(n_hidden_recog_1, n_hidden_recog_2)),
-            'out_mean': tf.get_variable('g_out_mean', initializer=xavier_init(n_hidden_recog_2, n_z)),
-            'out_log_sigma': tf.get_variable('g_out_log_sigma', initializer=xavier_init(n_hidden_recog_2, n_z)),
+            'h1': tf.get_variable('g_h1', [n_input+Y_DIMS, n_hidden_recog_1], initializer=tf.contrib.layers.xavier_initializer()),
+            'h2': tf.get_variable('g_h2', [n_hidden_recog_1, n_hidden_recog_2], initializer=tf.contrib.layers.xavier_initializer()),
+            'out_mean': tf.get_variable('g_out_mean', [n_hidden_recog_2, n_z], initializer=tf.contrib.layers.xavier_initializer()),
+            'out_log_sigma': tf.get_variable('g_out_log_sigma', [n_hidden_recog_2, n_z], initializer=tf.contrib.layers.xavier_initializer()),
             'b1': tf.get_variable('g_b1', initializer=tf.zeros([n_hidden_recog_1], dtype=tf.float32)),
             'b2': tf.get_variable('g_b2', initializer=tf.zeros([n_hidden_recog_2], dtype=tf.float32)),
             'b_out_mean': tf.get_variable('g_b_out_mean', initializer=tf.zeros([n_z], dtype=tf.float32)),
