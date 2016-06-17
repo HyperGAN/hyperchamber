@@ -9,12 +9,12 @@ class hyperchamber_test(unittest.TestCase):
     def test_set(self):
         hc.reset()
         hc.set('x', [1])
-        self.assertEqual(hc.configs(1, createUUID=False), [{'x':1}])
+        self.assertEqual(hc.configs(1, offset=0, serial=True,create_uuid=False), [{'x':1}])
 
     def test_set2(self):
         hc.reset()
         hc.set('x', [1,2])
-        self.assertEqual(hc.configs(2, createUUID=False), [{'x':1},{'x':2}])
+        self.assertEqual(hc.configs(2, offset=0, serial=True,create_uuid=False), [{'x':1},{'x':2}])
 
     def test_createUUID(self):
         hc.reset()
@@ -25,27 +25,28 @@ class hyperchamber_test(unittest.TestCase):
     def test_pagination(self):
         hc.reset()
         hc.set('x', [1,2])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=0), [{'x':1}])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=1), [{'x':2}])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=2), [])
+        self.assertEqual(hc.configs(1, create_uuid=False, serial=True,offset=0), [{'x':1}])
+        self.assertEqual(hc.configs(1, create_uuid=False, serial=True,offset=1), [{'x':2}])
+        self.assertEqual(hc.configs(1, create_uuid=False, serial=True,offset=2), [{'x':1}])
 
     def test_constant_set(self):
         hc.reset()
         hc.set('x', 1)
         hc.set('y', [2,3])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=0), [{'x':1, 'y':2}])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=1), [{'x':1, 'y':3}])
-        self.assertEqual(hc.configs(1, createUUID=False, offset=2), [])
+        self.assertEqual(hc.configs(1, create_uuid=False,serial=True, offset=0), [{'x':1, 'y':2}])
+        print("--")
+        self.assertEqual(hc.configs(1, create_uuid=False, serial=True,offset=1), [{'x':1, 'y':3}])
+        self.assertEqual(hc.configs(1, create_uuid=False,serial=True, offset=2), [{'x':1, 'y':2}])
 
     def test_set2_2vars(self):
         hc.reset()
         hc.set('x', [1,2])
         hc.set('y', [3,4])
-        self.assertEqual(hc.configs(2, createUUID=False), [{'x':1,'y':3},{'x':2,'y':4}])
+        self.assertEqual(hc.configs(2, create_uuid=False, serial=True,offset=0), [{'x':1,'y':3},{'x':2,'y':4}])
 
     def test_configs(self):
         hc.reset()
-        self.assertEqual(hc.configs(createUUID=False), [])
+        self.assertEqual(hc.configs(create_uuid=False), [])
 
 
     def test_record(self):
@@ -62,7 +63,7 @@ class hyperchamber_test(unittest.TestCase):
         hc.reset()
         self.assertEqual(hc.configs(), [])
         self.assertEqual(hc.results, [])
-        self.assertEqual(hc.count_configs(), 0)
+        self.assertEqual(hc.count_configs(), 1)
 
     def test_store_size(self):
         hc.reset()

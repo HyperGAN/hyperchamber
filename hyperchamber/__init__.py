@@ -1,6 +1,5 @@
 import uuid
 
-import hyperchamber.permute as permute
 import hyperchamber.io as io
 
 import random
@@ -14,18 +13,14 @@ def set(key, value):
     return store
 
 def count_configs():
-    """Counts the total number of configs."""
-    if(len(store)==0 and len(permute.store)==0):
-      return 0
-    
     count = 1
 
     for key in store:
         value = store[key]
-        if(isinstance(value, list) and len(value) > count):
-            count = len(value)
+        if(isinstance(value,list)):
+            count *= len(value)
 
-    return permute.count_configs(count)
+    return count
 
 def get_config_value(k, i):
     """Gets the ith config value for k.  e.g. get_config_value('x', 1)"""
@@ -34,42 +29,51 @@ def get_config_value(k, i):
     else:
         return store[k][i]
 
-def configs(max_configs=1, offset=None, createUUID=True):
+def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
     """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] 
       
       Will also add a config UUID, useful for tracking configs.  
-      You can turn this off by passing createUUID=False.
+      You can turn this off by passing create_uuid=False.
     """
-    if(len(store)==0 and len(permute.store)==0):
+    if len(store)==0:
         return []
 
     configs = []
-    total = count_configs()
-    permute_configs = permute.count_configs(1)
-    singular_configs = total // permute_configs
 
-    for i in range(max_configs):
-      #  if(offset == None):
+    if(offset is None):
         offset = max(0, random.randint(0, count_configs()))
-      #    print("Offset: ", offset)
+    for i in range(max_configs):
         # get an element to index over
 
-        config = {}
-        for k in store:
-            config[k]=get_config_value(k, (offset)//permute_configs)
-
-        more = permute.get_config((offset) % permute_configs)
-        config.update(more)
-        if(createUUID):
+        config = get_config(offset)
+        if(create_uuid):
           config["uuid"]=uuid.uuid4().hex
         configs.append(config)
+        if(serial):
+            offset+=1
+        else:
+            offset = max(0, random.randint(0, count_configs()))
     return configs
+
+def get_config(i):
+  """Gets the ith config"""
+  selections = {}
+  for key in store:
+    value = store[key]
+    if isinstance(value, list):
+        selected = i % len(value)
+        i = i // len(value)
+        selections[key]= value[selected]
+    else:
+        selections[key]= value
+
+  return selections
+
 
 def reset():
     """Reset the hyperchamber variables"""
     global store
     global results
-    permute.store = {}
     store = {}
     results = []
     return
