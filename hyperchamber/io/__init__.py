@@ -59,3 +59,8 @@ def record(config, result, max_retries=10):
           print("Error while calling hyperchamber - retrying ", e)
           retries += 1
 
+
+def load_config(id):
+    url = get_api_path('config/'+id+'.json')
+    r = requests.get(url)
+    return json.loads(r.text)
