@@ -1,5 +1,6 @@
 import hyperchamber as hc
 from shared.ops import *
+import shared
 
 import os
 import sys
@@ -499,6 +500,12 @@ print("Generating configs with hyper search space of ", hc.count_configs())
 j=0
 k=0
 cifar_utils.maybe_download_and_extract()
+
+def get_function(name):
+    print('name', name);
+    if(name == "function:tensorflow.python.ops.gen_nn_ops.relu"):
+        return tf.nn.relu
+    return eval(name.split(":")[1])
 for config in hc.configs(100):
     if(args.load_config):
         print("Loading config", args.load_config)
@@ -506,6 +513,9 @@ for config in hc.configs(100):
         if(not config):
             print("Could not find config", args.load_config)
             break
+    config['g_activation']=get_function(config['g_activation'])
+    config['d_activation']=get_function(config['d_activation'])
+    config['transfer_fct']=get_function(config['transfer_fct'])
     print(config)
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
