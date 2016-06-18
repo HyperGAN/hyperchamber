@@ -18,6 +18,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Runs the GAN.')
 parser.add_argument('--load_config', type=str)
+parser.add_argument('--epochs', type=int, default=10)
 
 args = parser.parse_args()
 start=.0001
@@ -477,7 +478,7 @@ for config in hc.configs(100):
     #tf.assign(x,train_x)
     #tf.assign(y,tf.one_hot(tf.cast(train_y,tf.int64), Y_DIMS, 1.0, 0.0))
     sampled=False
-    for i in range(1000):
+    for i in range(args.epochs):
         if(not epoch(sess, config)):
             break
         j=test_epoch(i, j, sess, config)
