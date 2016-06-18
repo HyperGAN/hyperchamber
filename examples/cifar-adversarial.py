@@ -22,52 +22,64 @@ parser.add_argument('--epochs', type=int, default=10)
 
 args = parser.parse_args()
 start=.0001
-end=.0005
+end=.001
 num=20
-hc.permute.set("g_learning_rate", list(np.linspace(start, end, num=num)))
-hc.permute.set("d_learning_rate", list(np.linspace(start, end, num=num)))
+hc.set("g_learning_rate", list(np.linspace(start, end, num=num)))
+hc.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
-hc.permute.set("n_hidden_recog_1", list(np.linspace(100, 1000, num=10)))
-hc.permute.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=10)))
-hc.permute.set("transfer_fct", [tf.tanh, tf.nn.elu, tf.nn.relu, tf.nn.relu6, tf.nn.softplus, tf.nn.softsign]);
+hc.set("n_hidden_recog_1", list(np.linspace(100, 1000, num=100)))
+hc.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=100)))
+hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
+hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
+hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 
 hc.set("n_input", 32*32*3)
 
-conv_g_layers = [[(i+20)*4, (i+20)*2, 3] for i in range(60)]
-
-conv_d_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
+conv_g_layers = [[i*8, i*4, 3] for i in [8,16]]
+conv_g_layers = [[i*8, i*4, i*2, 3] for i in [8,16]]
+conv_g_layers += [[i*8, i*4, i*2, i] for i in [8,16]]
+conv_g_layers += [[i*16, i*8, i*4, i*2, 3] for i in [8]]
+conv_g_layers += [[i*16, i*8, i*4, i*2, i, 3] for i in [4, 6, 8]]
+conv_d_layers = [[i, i*2, i*4] for i in [32,64,128]] 
+#conv_d_layers += [[i, i*2, i*4, i*8] for i in [8, 16, 20]] 
+#conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [4,8, 12]] 
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
-g_encoder_layers = [[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
+g_encoder_layers = conv_d_layers#[[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
 
-hc.permute.set("conv_g_layers", conv_g_layers)
-hc.permute.set("conv_d_layers", conv_d_layers)
-hc.permute.set("g_encode_layers", g_encoder_layers)
+hc.set("conv_size", [3, 4, 5])
+hc.set("d_conv_size", [5])
+hc.set("conv_g_layers", conv_g_layers)
+hc.set("conv_d_layers", conv_d_layers)
+hc.set("g_encode_layers", g_encoder_layers)
 
-hc.permute.set("z_dim", [32*4, 64*4, 16*4, 64, 32])
-hc.permute.set("z_lin_layer", [32*8, 64*8, 16*8, 64])
+hc.set("z_dim", [32, 64, 92, 128, 256])
 
-hc.permute.set("regularize", [False, True])
-hc.permute.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
+hc.set("regularize", [False, True])
+hc.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
 
-hc.permute.set("g_batch_norm", [True])
-hc.permute.set("d_batch_norm", [True])
+hc.set("g_batch_norm", [False, True])
+hc.set("d_batch_norm", [False, True])
 
-hc.permute.set("g_last_layer", [None])
+hc.set("g_last_layer", [None])
 
-hc.permute.set("g_encoder", [True])
+hc.set("g_encoder", [True])
 
-hc.permute.set("loss", ['sigmoid', 'softmax'])
+hc.set("loss", ['sigmoid', 'softmax'])
 
-hc.permute.set("g_lrelu_leak", np.linspace(0.6,0.9, num=5))
+hc.set("mse_loss", [False, True])
+hc.set("mse_lambda",list(np.linspace(0.0001, 0.01, num=30)))
 
-hc.permute.set("mse_loss", [False])
-hc.permute.set("mse_lambda",list(np.linspace(0.0001, 1, num=30)))
+hc.set("latent_loss", [False, True])
+hc.set("latent_lambda", list(np.linspace(0.0001, .4, num=30)))
+hc.set("g_dropout", list(np.linspace(0.6, 0.99, num=30)))
 
-hc.permute.set("latent_lambda", list(np.linspace(0.0001, .2, num=30)))
+hc.set("g_project", ['zeros', 'linear'])
+hc.set("d_project", ['zeros', 'linear'])
+hc.set("e_project", ['zeros', 'linear'])
 
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
-hc.set("model", "255bits/cifar-gan-nomse-epoch10")
+hc.set("model", "255bits/cifar-gan-nomse-epoch10-2")
 hc.set("version", "0.0.1")
 
 
@@ -79,29 +91,48 @@ def generator(config, y,z, reuse=False):
     if(reuse):
       tf.get_variable_scope().reuse_variables()
     output_shape = X_DIMS[0]*X_DIMS[1]*3
-    result = tf.concat(1, [y, z])
-    result = linear(result, config['z_lin_layer'], 'g_input_proj')
-
+    z_proj_dims = config['conv_g_layers'][0]*2
+    z_dims = int(z.get_shape()[1])
+    print("z_proj_dims", z_proj_dims, z_dims, Y_DIMS)
+    noise_dims = z_proj_dims-z_dims-Y_DIMS
+    print(noise_dims)
+    noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
+    if(config['g_project'] == 'noise'):
+        result = tf.concat(1, [y, z, noise])
+    elif(config['g_project'] == 'zeros'):
+        result = tf.concat(1, [y, z])
+        result = tf.pad(result, [[0, 0],[noise_dims//2, noise_dims//2]])
+    else:
+        result = tf.concat(1, [y, z])
+        result = linear(result, z_proj_dims, 'g_input_proj')
+    
     if config['conv_g_layers']:
-        result = tf.reshape(result, [config['batch_size'], 4,4,config['z_lin_layer']//16])
+        result = tf.reshape(result, [config['batch_size'], 4,4,z_proj_dims//16])
         #result = tf.nn.dropout(result, 0.7)
         for i, layer in enumerate(config['conv_g_layers']):
             j=int(result.get_shape()[1]*2)
             k=int(result.get_shape()[2]*2)
+            stride=2
+            if(j > X_DIMS[0]):
+                j = X_DIMS[0]
+                k = X_DIMS[1]
+                stride=1
             output = [config['batch_size'], j,k,layer]
-            result = deconv2d(result, output, scope="g_conv_"+str(i))
+            result = deconv2d(result, output, scope="g_conv_"+str(i), k_w=config['conv_size'], k_h=config['conv_size'], d_h=stride, d_w=stride)
             if(config['g_batch_norm']):
                 result = batch_norm(result, name='g_conv_bn_'+str(i))
             if(len(config['conv_g_layers']) == i+1):
                 print("Skipping last layer")
             else:
                 print("Adding nonlinear")
-                result = lrelu(result, leak=config['g_lrelu_leak'])
+                result = config['g_activation'](result)
 
     print("Output shape is ", result.get_shape(), output_shape)
     if(result.get_shape()[1]*result.get_shape()[2]*result.get_shape()[3] != output_shape):
         print("Adding linear layer")
         result = tf.reshape(result,[config['batch_size'], -1])
+        result = tf.nn.dropout(result, config['g_dropout'])
+        result = config['g_activation'](result)
         result = linear(result, output_shape, scope="g_proj")
         result = tf.reshape(result, [config["batch_size"], X_DIMS[0], X_DIMS[1], 3])
         if(config['g_batch_norm']):
@@ -110,24 +141,31 @@ def generator(config, y,z, reuse=False):
     if(config['g_last_layer'] == None):
         pass
     elif(config['g_last_layer'] == "lrelu"):
-        result = lrelu(result, config['g_lrelu_leak'])
+        result = lrelu(result)
     return result
 
 def discriminator(config, x, z, reuse=False):
     if(reuse):
       tf.get_variable_scope().reuse_variables()
     x = tf.reshape(x, [config["batch_size"], 3, -1])
-    z = linear(z, int(x.get_shape()[2]), scope='d_z')
+    x += tf.random_normal(x.get_shape(), mean=0, stddev=0.1)
+
+    if(config['d_project'] == 'zeros'):
+        noise_dims = int(x.get_shape()[2])-int(z.get_shape()[1])
+        z = tf.pad(z, [[0, 0],[noise_dims//2, noise_dims//2]])
+    else:
+        z = linear(z, int(x.get_shape()[2]), scope='d_z')
+ 
     z = tf.reshape(z, [config['batch_size'], 1, int(x.get_shape()[2])])
     print("CONCAT", x.get_shape(), z.get_shape())
     result = tf.concat(1, [x,z])
     if config['conv_d_layers']:
         result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
         for i, layer in enumerate(config['conv_d_layers']):
-            result = conv2d(result, layer, scope='d_conv'+str(i))
+            result = conv2d(result, layer, scope='d_conv'+str(i), k_w=config['d_conv_size'], k_h=config['d_conv_size'])
             if(config['d_batch_norm']):
                 result = batch_norm(result, name='d_conv_bn_'+str(i))
-            result = tf.nn.relu(result)
+            result = config['d_activation'](result)
         result = tf.reshape(x, [config["batch_size"], -1])
 
     #result = tf.nn.dropout(result, 0.7)
@@ -144,26 +182,31 @@ def encoder(config, x,y):
     deconv_shape = None
     output_shape = config['z_dim']
     x = tf.reshape(x, [config["batch_size"], 3, -1])
-    y = linear(y, int(x.get_shape()[2]), scope='g_y')
+    if(config['e_project'] == 'zeros'):
+        noise_dims = int(x.get_shape()[2])-int(y.get_shape()[1])
+        y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
+    else:
+        y = linear(y, int(x.get_shape()[2]), scope='g_y')
+ 
     y = tf.reshape(y, [config['batch_size'], 1, int(x.get_shape()[2])])
     result = tf.concat(1, [x,y])
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
 
     if config['g_encode_layers']:
         for i, layer in enumerate(config['g_encode_layers']):
-            result = conv2d(result, layer, scope='g_enc_conv'+str(i))
+            result = conv2d(result, layer, scope='g_enc_conv'+str(i), k_w=config['conv_size'], k_h=config['conv_size'])
             if(config['d_batch_norm']):
                 result = batch_norm(result, name='g_enc_conv_bn_'+str(i))
             if(len(config['g_encode_layers']) == i+1):
                 print("Skipping last layer")
             else:
                 print("Adding nonlinear")
-                result = lrelu(result, leak=config['g_lrelu_leak'])
+                result = config['g_activation'](result)
         result = tf.reshape(x, [config["batch_size"], -1])
 
     if(result.get_shape()[1] != output_shape):
         print("Adding linear layer")
-        result = lrelu(result, leak=config['g_lrelu_leak'])
+        result = config['g_activation'](result)
         result = linear(result, output_shape, scope="g_enc_proj")
         result = tf.reshape(result, [config['batch_size'], 1, 1, -1])
         if(config['g_batch_norm']):
@@ -226,6 +269,10 @@ def create(config, x,y):
     print("shape of z,encoded_z", z.get_shape(), encoded_z.get_shape())
     d_fake, _ = discriminator(config,g, z, reuse=True)
 
+    latent_loss = -config['latent_lambda'] * tf.reduce_mean(1 + z_sigma
+                                       - z_mu
+                                       - tf.exp(z_sigma), 1)
+
     if(config['loss'] == 'softmax'):
         fake_symbol = tf.tile(tf.constant([0,0,0,0,0,0,0,0,0,0,1], dtype=tf.float32), [config['batch_size']])
         fake_symbol = tf.reshape(fake_symbol, [config['batch_size'],11])
@@ -239,11 +286,10 @@ def create(config, x,y):
         g_loss_softmax = tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols)
         g_loss_encoder = tf.nn.softmax_cross_entropy_with_logits(d_real, fake_symbol)
 
-        latent_loss = -config['latent_lambda'] * tf.reduce_mean(1 + z_sigma
-                                           - z_mu
-                                           - tf.exp(z_sigma), 1)
-
-        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder+latent_loss)
+        if(config['latent_loss']):
+            g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder+latent_loss)
+        else:
+            g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
         d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
     else:
         fake_symbol = 0
@@ -262,18 +308,21 @@ def create(config, x,y):
         d_real_loss =  -tf.log(1-d_fake)
         g_loss_softmax = -tf.log(1-d_real)
         g_loss_encoder = -tf.log(d_fake)
-        g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
+        if(config['latent_loss']):
+            g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder+latent_loss)
+        else:
+            g_loss = tf.reduce_mean(g_loss_softmax+g_loss_encoder)
         d_loss = tf.reduce_mean(d_fake_loss + d_real_loss)
 
 
 
     if config['regularize']:
         ws = None
-        with tf.variable_scope("g_input_proj"):
+        with tf.variable_scope("g_conv_0"):
             tf.get_variable_scope().reuse_variables()
-            ws = tf.get_variable('Matrix')
+            ws = tf.get_variable('w')
             tf.get_variable_scope().reuse_variables()
-            b = tf.get_variable('bias')
+            b = tf.get_variable('biases')
         lam = config['regularize_lambda']
         g_loss += lam*tf.nn.l2_loss(ws)+lam*tf.nn.l2_loss(b)
 
@@ -356,8 +405,8 @@ def samples(sess, config):
     x = get_tensor("x")
     rand = np.random.randint(0,10, size=config['batch_size'])
     random_one_hot = np.eye(10)[rand]
-    x_input = np.random.uniform(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],3])
-    sample = sess.run(generator, feed_dict={x:x_input, y:random_one_hot})
+    #x_input = np.random.normal(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],3])
+    sample = sess.run(generator, feed_dict={y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
     return split_sample(10, sample)
 
@@ -378,7 +427,7 @@ def epoch(sess, config):
     for i in range(total_batch):
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         d_loss, g_loss = train(sess, config)
-        if(math.isnan(d_loss) or math.isnan(g_loss)):
+        if(math.isnan(d_loss) or math.isnan(g_loss) or g_loss < -10 or g_loss > 1000 or d_loss > 1000):
             return False
     return True
 
@@ -444,6 +493,7 @@ def record_run(config):
 
 
 
+
 print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
@@ -452,8 +502,8 @@ cifar_utils.maybe_download_and_extract()
 for config in hc.configs(100):
     if(args.load_config):
         print("Loading config", args.load_config)
-        load_config = hc.io.load_config(args.load_config)
-        if(not load_config):
+        config = hc.io.load_config(args.load_config)
+        if(not config):
             print("Could not find config", args.load_config)
             break
     print(config)
@@ -482,14 +532,13 @@ for config in hc.configs(100):
         if(not epoch(sess, config)):
             break
         j=test_epoch(i, j, sess, config)
-        sampled=True
+        if(i == 9):
+            print("Recording run...")
+            record_run(config)
     #x.assign(test_x)
     #y.assign(tf.one_hot(tf.cast(test_y,tf.int64), Y_DIMS, 1.0, 0.0))
     #print("results: difficulty %.2f, ranking %.2f, g_loss %.2f, d_fake %.2f, d_real %.2f" % (difficulty, ranking, g_loss, d_fake, d_real))
 
-    print("Recording run...")
-    if(sampled):
-        record_run(config)
     #with g.as_default():
     tf.reset_default_graph()
     sess.close()
