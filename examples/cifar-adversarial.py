@@ -14,7 +14,12 @@ from tensorflow.python.framework import ops
 
 from tensorflow.models.image.cifar10 import cifar10_input
 import shared.cifar_utils as cifar_utils
+import argparse
 
+parser = argparse.ArgumentParser(description='Runs the GAN.')
+parser.add_argument('--load_config', type=str)
+
+args = parser.parse_args()
 start=.0001
 end=.0005
 num=20
@@ -444,6 +449,13 @@ j=0
 k=0
 cifar_utils.maybe_download_and_extract()
 for config in hc.configs(100):
+    if(args.load_config):
+        print("Loading config", args.load_config)
+        load_config = hc.io.load_config(args.load_config)
+        if(not load_config):
+            print("Could not find config", args.load_config)
+            break
+    print(config)
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
     sess = tf.Session()
