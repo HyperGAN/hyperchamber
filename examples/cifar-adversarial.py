@@ -25,7 +25,7 @@ parser.add_argument('--d_batch_norm', type=bool)
 
 args = parser.parse_args()
 start=.0002
-end=.02
+end=.01
 num=20
 hc.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.set("d_learning_rate", list(np.linspace(start, end, num=num)))
@@ -72,11 +72,13 @@ hc.set("g_encoder", [True])
 hc.set('d_linear_layer', [True])
 hc.set('d_linear_layers', list(np.arange(50, 600)))
 
+hc.set("g_target_prob", .75 /2.)
+hc.set("d_label_smooth", 0.25)
+
 hc.set("d_kernels", list(np.arange(25, 150)))
 hc.set("d_kernel_dims", list(np.arange(100, 500)))
 
 hc.set("loss", ['custom'])
-hc.set("g_loss_target", ['exact'])
 
 hc.set("mse_loss", [False])
 hc.set("mse_lambda",list(np.linspace(0.0001, 0.1, num=30)))
@@ -86,13 +88,14 @@ hc.set("latent_lambda", list(np.linspace(0.01, .5, num=30)))
 hc.set("g_dropout", list(np.linspace(0.6, 0.99, num=30)))
 
 hc.set("g_project", ['zeros'])
-hc.set("d_project", ['zeros', 'noise'])
-hc.set("e_project", ['zeros', 'noise'])
+hc.set("d_project", ['zeros'])
+hc.set("e_project", ['zeros'])
 
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
-hc.set("model", "255bits/cifar-minibatch")
+hc.set("model", "mikkel/cifar-adversarial:0.2")
 hc.set("version", "0.0.1")
+hc.set("machine", "mikkel")
 
 
 X_DIMS=[32,32]
@@ -166,15 +169,15 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
     single_batch_size = config['batch_size']
     x = tf.concat(0, [x,g])
     z = tf.concat(0, [z,gz])
-    x = tf.reshape(x, [batch_size, 3, -1])
+    x = tf.reshape(x, [batch_size, -1, 3])
     #x += tf.random_normal(x.get_shape(), mean=0, stddev=0.1)
 
     if(config['d_project'] == 'zeros'):
-        noise_dims = int(x.get_shape()[2])-int(z.get_shape()[1])
+        noise_dims = int(x.get_shape()[1])-int(z.get_shape()[1])
         z = tf.pad(z, [[0, 0],[noise_dims//2, noise_dims//2]])
-        z = tf.reshape(z, [batch_size, 1, int(x.get_shape()[2])])
+        z = tf.reshape(z, [batch_size, int(x.get_shape()[1]), 1])
         print("CONCAT", x.get_shape(), z.get_shape())
-        result = tf.concat(1, [x,z])
+        result = tf.concat(2, [x,z])
     else:
         x = tf.reshape(x, [batch_size, -1])
         result = tf.concat(1, [z,x])
@@ -233,10 +236,7 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
         result = config['d_activation'](result)
 
     last_layer = result
-    if(config['loss'] == 'softmax'):
-        result = linear(result, Y_DIMS+1, scope="d_proj")
-    else:
-        result = linear(result, Y_DIMS+1, scope="d_proj")
+    result = linear(result, Y_DIMS+1, scope="d_proj")
 
 
     def build_logits(class_logits, num_classes):
@@ -273,15 +273,15 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
 def encoder(config, x,y):
     deconv_shape = None
     output_shape = config['z_dim']
-    x = tf.reshape(x, [config["batch_size"], 3, -1])
+    x = tf.reshape(x, [config["batch_size"], -1,3])
     if(config['e_project'] == 'zeros'):
-        noise_dims = int(x.get_shape()[2])-int(y.get_shape()[1])
+        noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
         y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
     else:
-        y = linear(y, int(x.get_shape()[2]), scope='g_y')
+        y = linear(y, int(x.get_shape()[1]), scope='g_y')
  
-    y = tf.reshape(y, [config['batch_size'], 1, int(x.get_shape()[2])])
-    result = tf.concat(1, [x,y])
+    y = tf.reshape(y, [config['batch_size'], int(x.get_shape()[1]), 1])
+    result = tf.concat(2, [x,y])
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
 
     if config['g_encode_layers']:
@@ -404,18 +404,13 @@ def create(config, x,y):
         #d_fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_fake, zeros)
         #d_real_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_real, ones)
 
-        generator_target_prob = .75 /2.
-        d_label_smooth = 0.25
+        generator_target_prob = config['g_target_prob']
+        d_label_smooth = config['d_label_smooth']
         d_fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_fake_sig, zeros)
         #d_real_loss = tf.nn.sigmoid_cross_entropy_with_logits(d_real_sig, ones)
         d_real_loss = sigmoid_kl_with_logits(d_real_sig, 1.-d_label_smooth)
         d_class_loss = tf.nn.softmax_cross_entropy_with_logits(d_real,real_symbols)
         d_fake_class_loss = tf.nn.softmax_cross_entropy_with_logits(d_fake,fake_symbol)
-
-        if(config['g_loss_target']=='any'):
-            g_loss_target = 1-fake_symbol
-        elif(config['g_loss_target']=='exact'):
-            g_loss_target = real_symbols
 
         g_loss= sigmoid_kl_with_logits(d_fake_sig, generator_target_prob)
         g_class_loss = tf.nn.softmax_cross_entropy_with_logits(d_fake, real_symbols)
