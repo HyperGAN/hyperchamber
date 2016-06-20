@@ -501,8 +501,8 @@ def train(sess, config):
     #_ = sess.run([mse_optimizer])
 
     print("g cost %.2f d cost %.2f encoder %.2f d_fake %.6f d_real %.2f d_class %.2f g_class %.2f" % (g_cost, d_cost,e_loss, d_fake, d_real, d_class, g_class))
-    #print(" mean %.2f max %.2f min %.2f" % (np.mean(x), np.max(x), np.min(x)))
-    #print(" mean %.2f max %.2f min %.2f" % (np.mean(g), np.max(g), np.min(g)))
+    print("X mean %.2f max %.2f min %.2f" % (np.mean(x), np.max(x), np.min(x)))
+    print("G mean %.2f max %.2f min %.2f" % (np.mean(g), np.max(g), np.min(g)))
 
     return d_cost, g_cost
 
@@ -559,8 +559,17 @@ def epoch(sess, config):
     for i in range(total_batch):
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         d_loss, g_loss = train(sess, config)
-        if(math.isnan(d_loss) or math.isnan(g_loss) or g_loss < -10 or g_loss > 1000 or d_loss > 1000):
-            return False
+        if(i > 30):
+        
+            if(math.isnan(d_loss) or math.isnan(g_loss) or g_loss < -10 or g_loss > 1000 or d_loss > 1000):
+                return False
+        
+            g = get_tensor('g')
+            rX = sess.run([g])
+            if(np.min(rX) < -100 or np.max(rX) > 100):
+                return False
+
+
     return True
 
 def test_config(sess, config):
@@ -649,7 +658,7 @@ def get_function(name):
     if(name == "function:tensorflow.python.ops.nn_ops.elu"):
         return tf.nn.elu
     return eval(name.split(":")[1])
-for config in hc.configs(100):
+for config in hc.configs(1):
     if(args.load_config):
         print("Loading config", args.load_config)
         config.update(hc.io.load_config(args.load_config))
