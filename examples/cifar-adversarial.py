@@ -58,7 +58,7 @@ hc.set("d_conv_size", [3, 4, 5])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
-g_encoder_layers = conv_d_layers
+g_encoder_layers = [[32,64,128]]
 hc.set("g_encode_layers", g_encoder_layers)
 
 hc.set("z_dim", list(np.arange(32,128)))
@@ -71,7 +71,7 @@ hc.set("d_batch_norm", [True])
 
 hc.set("g_encoder", [True])
 
-hc.set('d_linear_layer', [False, True])
+hc.set('d_linear_layer', [False])
 hc.set('d_linear_layers', list(np.arange(50, 600)))
 
 hc.set("g_target_prob", .75 /2.)
