@@ -1,5 +1,6 @@
 import hyperchamber as hc
 from shared.ops import *
+from shared.util import *
 import shared
 
 import os
@@ -26,16 +27,16 @@ parser.add_argument('--no_stop', type=bool)
 
 args = parser.parse_args()
 start=.0002
-end=.01
-num=20
+end=.003
+num=100
 hc.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
 hc.set("n_hidden_recog_1", list(np.linspace(100, 1000, num=100)))
 hc.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=100)))
-hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
-hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
-hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
+hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
+hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
+hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
 hc.set("g_last_layer", [tf.nn.tanh]);
 hc.set("e_last_layer", [tf.nn.tanh]);
 
@@ -141,13 +142,13 @@ def generator(config, y,z, reuse=False):
                         k = X_DIMS[1]
                         stride=1
                     output = [config['batch_size'], j,k,int(layer)]
-                    result = deconv2d(result, output, scope="g_conv_"+str(i+offset), k_w=config['conv_size'], k_h=config['conv_size'], d_h=stride, d_w=stride)
-                    if(config['g_batch_norm']):
-                        result = batch_norm(result, name='g_conv_bn_'+str(i+offset))
+                    result = deconv2d(result, output, name="g_conv_"+str(i+offset), k_w=config['conv_size'], k_h=config['conv_size'], d_h=stride, d_w=stride)
                     if(len(config['conv_g_layers']) == i+1):
                         print("Skipping last layer")
                     else:
                         print("Adding nonlinear")
+                        if(config['g_batch_norm']):
+                            result = batch_norm(config['batch_size'], name='g_conv_bn_'+str(i+offset))(result)
                         result = config['g_activation'](result)
                 return result
         result = build_layers(result, z_proj_dims, 0)
@@ -160,15 +161,14 @@ def generator(config, y,z, reuse=False):
             result = config['g_activation'](result)
             result = linear(result, output_shape, scope="g_proj")
             result = tf.reshape(result, [config["batch_size"], X_DIMS[0], X_DIMS[1], 3])
-            result = batch_norm(result, name='g_proj_bn')
             if(config['g_batch_norm']):
-                result = batch_norm(result, name='g_proj_bn')
-        print("Adding last layer", config['last_layer'])
+                result = batch_norm(config['batch_size'], name='g_proj_bn')(result)
+        print("Adding last layer", config['g_last_layer'])
         if(config['g_last_layer']):
             result = config['g_last_layer'](result)
         return result
 
-def discriminator(config, x, y,z,g,gz, reuse=False):
+def discriminator(config, x, z,g,gz, reuse=False):
     if(reuse):
         tf.get_variable_scope().reuse_variables()
     batch_size = config['batch_size']*2
@@ -199,9 +199,9 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
             if(filter > result.get_shape()[1]):
                 filter = int(result.get_shape()[1])
                 stride = 1
-            result = conv2d(result, layer, scope='d_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
+            result = conv2d(result, layer, name='d_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
             if(config['d_batch_norm']):
-                result = batch_norm(result, name='d_conv_bn_'+str(i))
+                result = batch_norm(batch_size, name='d_conv_bn_'+str(i))(result)
             result = config['d_activation'](result)
         result = tf.reshape(x, [batch_size, -1])
 
@@ -236,10 +236,6 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
     #result = tf.nn.dropout(result, 0.7)
     if(config['d_linear_layer']):
         result = linear(result, config['d_linear_layers'], scope="d_linear_layer")
-        result = tf.reshape(result, [batch_size, 1, 1, -1])
-        if(config['d_batch_norm']):
-            result = batch_norm(result, name='d_linear_layer_bn')
-        result = tf.reshape(result, [batch_size, -1])
         result = config['d_activation'](result)
 
     last_layer = result
@@ -281,9 +277,12 @@ def encoder(config, x,y):
     deconv_shape = None
     output_shape = config['z_dim']
     x = tf.reshape(x, [config["batch_size"], -1,3])
+    noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
     if(config['e_project'] == 'zeros'):
-        noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
         y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
+    elif(config['e_project'] == 'noise'):
+        noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
+        y = tf.concat(1, [y, noise])
     else:
         y = linear(y, int(x.get_shape()[1]), scope='g_y')
  
@@ -300,13 +299,13 @@ def encoder(config, x,y):
             #if filter > result.get_shape()[2]:
             #    filter = int(result.get_shape()[2])
             #    stride = 1
-            result = conv2d(result, layer, scope='g_enc_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
-            if(config['d_batch_norm']):
-                result = batch_norm(result, name='g_enc_conv_bn_'+str(i))
+            result = conv2d(result, layer, name='g_enc_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
             if(len(config['g_encode_layers']) == i+1):
                 print("Skipping last layer")
             else:
                 print("Adding nonlinear")
+                if(config['d_batch_norm']):
+                    result = batch_norm(config['batch_size'], name='g_enc_conv_bn_'+str(i))(result)
                 result = config['g_activation'](result)
             print(tf.reshape(result, [config['batch_size'], -1]))
         result = tf.reshape(result, [config["batch_size"], -1])
@@ -315,10 +314,6 @@ def encoder(config, x,y):
         print("(e)Adding linear layer", result.get_shape(), output_shape)
         result = config['g_activation'](result)
         result = linear(result, output_shape, scope="g_enc_proj")
-        result = tf.reshape(result, [config['batch_size'], 1, 1, -1])
-        if(config['g_batch_norm']):
-            result = batch_norm(result, name='g_enc_proj_bn')
-        result = tf.reshape(result, [config['batch_size'], -1])
 
     if(config['e_last_layer']):
         result = config['e_last_layer'](result)
@@ -390,7 +385,7 @@ def create(config, x,y):
     encoded = generator(config, y, encoded_z, reuse=True)
     print("shape of g,x", g.get_shape(), x.get_shape())
     print("shape of z,encoded_z", z.get_shape(), encoded_z.get_shape())
-    d_real, d_real_sig, d_fake, d_fake_sig, d_last_layer = discriminator(config,x, y, encoded_z, g, z, reuse=False)
+    d_real, d_real_sig, d_fake, d_fake_sig, d_last_layer = discriminator(config,x, encoded_z, g, z, reuse=False)
 
     latent_loss = -config['latent_lambda'] * tf.reduce_mean(1 + z_sigma
                                        - tf.square(z_mu)
@@ -565,7 +560,7 @@ def epoch(sess, config):
     for i in range(total_batch):
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         d_loss, g_loss = train(sess, config)
-        if(i > 30 and not args.no_stop):
+        if(i > 10 and not args.no_stop):
         
             if(math.isnan(d_loss) or math.isnan(g_loss) or g_loss < -10 or g_loss > 1000 or d_loss > 1000):
                 return False
@@ -676,7 +671,7 @@ for config in hc.configs(1):
     config['g_activation']=get_function(config['g_activation'])
     config['d_activation']=get_function(config['d_activation'])
     config['transfer_fct']=get_function(config['transfer_fct'])
-    config['last_layer']=get_function(config['last_layer'])
+    #config['last_layer']=get_function(config['last_layer'])
     config['g_last_layer']=get_function(config['g_last_layer'])
     config['e_last_layer']=get_function(config['e_last_layer'])
     print(config)
