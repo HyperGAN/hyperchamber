@@ -38,6 +38,8 @@ hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("last_layer", [lrelu_2]);
 
+hc.set('d_add_noise', [True])
+
 hc.set("n_input", 32*32*3)
 
 conv_g_layers = [[i*8, i*4, 3] for i in [16,32]]
@@ -55,10 +57,11 @@ conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [12, 16, 32, 64]]
 
 hc.set("conv_size", [3, 4, 5])
 hc.set("d_conv_size", [3, 4, 5])
+hc.set("e_conv_size", [3])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
-g_encoder_layers = [[32,64,128]]
+g_encoder_layers = [[16,32,64]]
 hc.set("g_encode_layers", g_encoder_layers)
 
 hc.set("z_dim", list(np.arange(32,128)))
@@ -71,7 +74,7 @@ hc.set("d_batch_norm", [True])
 
 hc.set("g_encoder", [True])
 
-hc.set('d_linear_layer', [False])
+hc.set('d_linear_layer', [True])
 hc.set('d_linear_layers', list(np.arange(50, 600)))
 
 hc.set("g_target_prob", .75 /2.)
@@ -172,7 +175,8 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
     x = tf.concat(0, [x,g])
     z = tf.concat(0, [z,gz])
     x = tf.reshape(x, [batch_size, -1, 3])
-    #x += tf.random_normal(x.get_shape(), mean=0, stddev=0.1)
+    if(config['d_add_noise']):
+        x += tf.random_normal(x.get_shape(), mean=0, stddev=0.1)
 
     if(config['d_project'] == 'zeros'):
         noise_dims = int(x.get_shape()[1])-int(z.get_shape()[1])
@@ -290,11 +294,11 @@ def encoder(config, x,y):
         print('-!-', tf.reshape(result, [config['batch_size'], -1]))
         for i, layer in enumerate(config['g_encode_layers']):
             print(layer)
-            filter = config['conv_size']
+            filter = config['e_conv_size']
             stride = 2
-            if filter > result.get_shape()[2]:
-                filter = int(result.get_shape()[2])
-                stride = 1
+            #if filter > result.get_shape()[2]:
+            #    filter = int(result.get_shape()[2])
+            #    stride = 1
             result = conv2d(result, layer, scope='g_enc_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
             if(config['d_batch_norm']):
                 result = batch_norm(result, name='g_enc_conv_bn_'+str(i))
@@ -354,7 +358,7 @@ def approximate_z(config, x, y):
     eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
                            dtype=tf.float32)
 
-    return tf.add(mu, tf.mul(sigma, eps)), mu, sigma
+    return tf.add(mu, tf.mul(tf.sqrt(tf.exp(sigma)), eps)), mu, sigma
 
 
 def sigmoid_kl_with_logits(logits, targets):
@@ -376,7 +380,6 @@ def create(config, x,y):
     #x = x/tf.reduce_max(tf.abs(x), 0)
     encoded_z = encoder(config, x,y)
     z, z_mu, z_sigma = approximate_z(config, x, y)
-
 
     print("Build generator")
     g = generator(config, y, z)
