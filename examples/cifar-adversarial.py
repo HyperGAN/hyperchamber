@@ -36,7 +36,8 @@ hc.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=100)))
 hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
-hc.set("last_layer", [lrelu_2]);
+hc.set("g_last_layer", [tf.nn.tanh]);
+hc.set("e_last_layer", [tf.nn.tanh]);
 
 hc.set('d_add_noise', [True])
 
@@ -163,8 +164,8 @@ def generator(config, y,z, reuse=False):
             if(config['g_batch_norm']):
                 result = batch_norm(result, name='g_proj_bn')
         print("Adding last layer", config['last_layer'])
-        if(config['last_layer']):
-            result = config['last_layer'](result)
+        if(config['g_last_layer']):
+            result = config['g_last_layer'](result)
         return result
 
 def discriminator(config, x, y,z,g,gz, reuse=False):
@@ -319,8 +320,8 @@ def encoder(config, x,y):
             result = batch_norm(result, name='g_enc_proj_bn')
         result = tf.reshape(result, [config['batch_size'], -1])
 
-    if(config['last_layer']):
-        result = config['last_layer'](result)
+    if(config['e_last_layer']):
+        result = config['e_last_layer'](result)
     return result
 
 def approximate_z(config, x, y):
@@ -357,8 +358,10 @@ def approximate_z(config, x, y):
     n_z = int(config["z_dim"])
     eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
                            dtype=tf.float32)
-
-    return tf.add(mu, tf.mul(tf.sqrt(tf.exp(sigma)), eps)), mu, sigma
+    z = tf.add(mu, tf.mul(tf.sqrt(tf.exp(sigma)), eps))
+    if(config['e_last_layer']):
+        z = config['e_last_layer'](z)
+    return z, mu, sigma
 
 
 def sigmoid_kl_with_logits(logits, targets):
@@ -674,6 +677,8 @@ for config in hc.configs(1):
     config['d_activation']=get_function(config['d_activation'])
     config['transfer_fct']=get_function(config['transfer_fct'])
     config['last_layer']=get_function(config['last_layer'])
+    config['g_last_layer']=get_function(config['g_last_layer'])
+    config['e_last_layer']=get_function(config['e_last_layer'])
     print(config)
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
@@ -699,6 +704,7 @@ for config in hc.configs(1):
     print("Running for ", args.epochs, " epochs")
     for i in range(args.epochs):
         if(not epoch(sess, config)):
+            print("Epoch failed")
             break
         j=test_epoch(i, j, sess, config)
         if(i == args.epochs-1):
