@@ -22,6 +22,7 @@ parser.add_argument('--load_config', type=str)
 parser.add_argument('--epochs', type=int, default=10)
 
 parser.add_argument('--d_batch_norm', type=bool)
+parser.add_argument('--no_stop', type=bool)
 
 args = parser.parse_args()
 start=.0002
@@ -35,7 +36,7 @@ hc.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=100)))
 hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
-hc.set("last_layer", [lrelu]);
+hc.set("last_layer", [lrelu_2]);
 
 hc.set("n_input", 32*32*3)
 
@@ -51,12 +52,13 @@ conv_d_layers = [[i, i*2, i*4, i*8] for i in list(np.arange(32, 128))]
 conv_d_layers += [[i, i*2, i*4, i*8] for i in list(np.arange(16,32))] 
 conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [12, 16, 32, 64]] 
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
-g_encoder_layers = conv_d_layers#[[(i+15), (i+15)*2, (i+15)*4] for i in range(30)]
 
 hc.set("conv_size", [3, 4, 5])
 hc.set("d_conv_size", [3, 4, 5])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
+
+g_encoder_layers = conv_d_layers
 hc.set("g_encode_layers", g_encoder_layers)
 
 hc.set("z_dim", list(np.arange(32,128)))
@@ -69,14 +71,14 @@ hc.set("d_batch_norm", [True])
 
 hc.set("g_encoder", [True])
 
-hc.set('d_linear_layer', [True])
+hc.set('d_linear_layer', [False, True])
 hc.set('d_linear_layers', list(np.arange(50, 600)))
 
 hc.set("g_target_prob", .75 /2.)
 hc.set("d_label_smooth", 0.25)
 
-hc.set("d_kernels", list(np.arange(25, 150)))
-hc.set("d_kernel_dims", list(np.arange(100, 500)))
+hc.set("d_kernels", list(np.arange(25, 80)))
+hc.set("d_kernel_dims", list(np.arange(200, 400)))
 
 hc.set("loss", ['custom'])
 
@@ -148,7 +150,7 @@ def generator(config, y,z, reuse=False):
 
         print("Output shape is ", result.get_shape(), output_shape)
         if(result.get_shape()[1]*result.get_shape()[2]*result.get_shape()[3] != output_shape):
-            print("Adding linear layer")
+            print("Adding linear layer", result.get_shape(), output_shape)
             result = tf.reshape(result,[config['batch_size'], -1])
             result = tf.nn.dropout(result, config['g_dropout'])
             result = config['g_activation'](result)
@@ -199,8 +201,8 @@ def discriminator(config, x, y,z,g,gz, reuse=False):
         result = tf.reshape(x, [batch_size, -1])
 
     def get_minibatch_features(h):
-        n_kernels = config['d_kernels']
-        dim_per_kernel = config['d_kernel_dims']
+        n_kernels = int(config['d_kernels'])
+        dim_per_kernel = int(config['d_kernel_dims'])
         x = linear(h, n_kernels * dim_per_kernel, scope="d_h")
         activation = tf.reshape(x, (batch_size, n_kernels, dim_per_kernel))
 
@@ -285,7 +287,9 @@ def encoder(config, x,y):
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
 
     if config['g_encode_layers']:
+        print('-!-', tf.reshape(result, [config['batch_size'], -1]))
         for i, layer in enumerate(config['g_encode_layers']):
+            print(layer)
             filter = config['conv_size']
             stride = 2
             if filter > result.get_shape()[2]:
@@ -299,10 +303,11 @@ def encoder(config, x,y):
             else:
                 print("Adding nonlinear")
                 result = config['g_activation'](result)
-        result = tf.reshape(x, [config["batch_size"], -1])
+            print(tf.reshape(result, [config['batch_size'], -1]))
+        result = tf.reshape(result, [config["batch_size"], -1])
 
     if(result.get_shape()[1] != output_shape):
-        print("Adding linear layer")
+        print("(e)Adding linear layer", result.get_shape(), output_shape)
         result = config['g_activation'](result)
         result = linear(result, output_shape, scope="g_enc_proj")
         result = tf.reshape(result, [config['batch_size'], 1, 1, -1])
@@ -554,14 +559,14 @@ def epoch(sess, config):
     for i in range(total_batch):
         #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         d_loss, g_loss = train(sess, config)
-        if(i > 30):
+        if(i > 30 and not args.no_stop):
         
             if(math.isnan(d_loss) or math.isnan(g_loss) or g_loss < -10 or g_loss > 1000 or d_loss > 1000):
                 return False
         
             g = get_tensor('g')
             rX = sess.run([g])
-            if(np.min(rX) < -100 or np.max(rX) > 100):
+            if(np.min(rX) < -1000 or np.max(rX) > 1000):
                 return False
 
 

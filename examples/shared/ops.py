@@ -95,6 +95,8 @@ class batch_norm_(object):
 
         return normed
 
+def lrelu_2(x, leak=0.4):
+    return lrelu(x, leak)
 def lrelu(x, leak=0.2):
     f1 = 0.5 * (1 + leak)
     f2 = 0.5 * (1 - leak)
