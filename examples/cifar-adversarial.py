@@ -60,12 +60,12 @@ conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [12, 16, 32, 64]]
 
 hc.set("conv_size", [3, 4, 5])
 hc.set("d_conv_size", [3, 4, 5])
-hc.set("e_conv_size", [3])
+hc.set("e_conv_size", [3, 4])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
-g_encoder_layers = [[16,32,64]]
-hc.set("g_encode_layers", g_encoder_layers)
+g_encode_layers = conv_d_layers
+hc.set("g_encode_layers", g_encode_layers)
 
 hc.set("z_dim", list(np.arange(32,128)))
 
@@ -678,6 +678,7 @@ def get_function(name):
         return tf.nn.tanh
     return eval(name.split(":")[1])
 for config in hc.configs(1):
+    other_config = config
     if(args.load_config):
         print("Loading config", args.load_config)
         config.update(hc.io.load_config(args.load_config))
@@ -692,6 +693,8 @@ for config in hc.configs(1):
     #config['last_layer']=get_function(config['last_layer'])
     config['g_last_layer']=get_function(config['g_last_layer'])
     config['e_last_layer']=get_function(config['e_last_layer'])
+    config['g_encode_layers']=other_config['g_encode_layers']
+    config['e_conv_size']=other_config['e_conv_size']
     print(config)
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
