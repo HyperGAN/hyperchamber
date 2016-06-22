@@ -25,10 +25,14 @@ def get_api_path(end):
   return "http://localhost:3000/api/v1/"+end
   #return "https://hyperchamber.255bits.com/api/v1/"+end
 
-def get_headers():
+def get_headers(no_content_type=False):
   if("HC_API_KEY" not in os.environ):
     raise MissingHCKeyException("hyperchamber.io api key needed.  export HC_API_KEY='...'");
   apikey = os.environ["HC_API_KEY"]
+  if(no_content_type):
+      return {
+        'apikey': apikey
+      }
   return {
     'Content-Type': 'application/json',
     'apikey': apikey
@@ -43,7 +47,11 @@ def sample(config, samples):
   labels = [s['label'] for s in samples]
   for image in images:
     multiple_files.append(('images', (image, open(image, 'rb'), 'image/png')))
-  headers = {"config": json.dumps(config, cls=HCEncoder), "labels": json.dumps(labels)}
+  headers=get_headers(no_content_type=True)
+  headers["config"]= json.dumps(config, cls=HCEncoder)
+  headers["labels"]= json.dumps(labels)
+  print("With headers", headers)
+
   try:
       r = requests.post(url, files=multiple_files, headers=headers, timeout=30)
       return r.text
@@ -69,5 +77,5 @@ def record(config, result, max_retries=10):
 
 def load_config(id):
     url = get_api_path('config/'+id+'.json')
-    r = requests.get(url)
+    r = requests.get(url, headers=get_headers())
     return json.loads(r.text)
