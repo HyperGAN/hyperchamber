@@ -1,10 +1,12 @@
 import requests
 import json
 import sys
-
-import sys
+import os
 
 from json import JSONEncoder
+
+class MissingHCKeyException(Exception):
+    pass
 
 class HCEncoder(JSONEncoder):
   def default(self, o):
@@ -20,12 +22,17 @@ class HCEncoder(JSONEncoder):
               return super(o)
 
 def get_api_path(end):
-  #return "http://localhost:3000/api/v1/"+end
-  return "https://hyperchamber.255bits.com/api/v1/"+end
+  return "http://localhost:3000/api/v1/"+end
+  #return "https://hyperchamber.255bits.com/api/v1/"+end
 
-def apikey(apikey):
-  """Sets up your api key."""
-  print("TODO: Api keys")
+def get_headers():
+  if("HC_API_KEY" not in os.environ):
+    raise MissingHCKeyException("hyperchamber.io api key needed.  export HC_API_KEY='...'");
+  apikey = os.environ["HC_API_KEY"]
+  return {
+    'Content-Type': 'application/json',
+    'apikey': apikey
+  }
 
 def sample(config, samples):
   """Upload a series of samples.  Each sample has keys 'image' and 'label'. 
@@ -40,7 +47,7 @@ def sample(config, samples):
   try:
       r = requests.post(url, files=multiple_files, headers=headers, timeout=30)
       return r.text
-  except:
+  except requests.exceptions.RequestException:
       e = sys.exc_info()[0]
       print("Error while calling hyperchamber - ", e)
       return None
@@ -52,9 +59,9 @@ def record(config, result, max_retries=10):
   retries = 0
   while(retries < max_retries):
       try:
-          r = requests.post(url, data=json.dumps(data, cls=HCEncoder), headers={'Content-Type': 'application/json'}, timeout=30)
+          r = requests.post(url, data=json.dumps(data, cls=HCEncoder), headers=get_headers(), timeout=30)
           return r.text
-      except:
+      except requests.exceptions.RequestException:
           e = sys.exc_info()[0]
           print("Error while calling hyperchamber - retrying ", e)
           retries += 1

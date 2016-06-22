@@ -20,8 +20,6 @@ def test_graph(config, filename, n):
 
   plt.savefig(filename)
 
-hc.io.apikey("TESTAPIKEY")
-
 hc.set("model", "255bits/acceptance_test")
 hc.set("version", "0.0.1")
 hc.set("test", "acceptance_io")
