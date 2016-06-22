@@ -37,6 +37,7 @@ hc.set("n_hidden_recog_2", list(np.linspace(100, 1000, num=100)))
 hc.set("transfer_fct", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
 hc.set("d_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
 hc.set("g_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu, maxout, offset_maxout]);
+hc.set("e_activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, lrelu]);
 hc.set("g_last_layer", [tf.nn.tanh]);
 hc.set("e_last_layer", [tf.nn.tanh]);
 
@@ -281,23 +282,26 @@ def build_conv_tower(result, layers, filter, batch_size, batch_norm_enabled, nam
             filter = int(result.get_shape()[2])
             stride = 1
         result = conv2d(result, layer, name=name+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
+        if(batch_norm_enabled):
+            result = batch_norm(batch_size, name=name+'_bn_'+str(i))(result)
         if(len(layers) == i+1):
             print("Skipping last layer")
         else:
             print("Adding nonlinear")
-            if(batch_norm_enabled):
-                result = batch_norm(batch_size, name=name+'_bn_'+str(i))(result)
             result = activation(result)
         print(tf.reshape(result, [batch_size, -1]))
     result = tf.reshape(result, [batch_size, -1])
     return result
 
-def encoder(config, x,y):
+
+def encoder(config, x,y, z,z_mu,z_sigma):
     deconv_shape = None
     output_shape = config['z_dim']
     x = tf.reshape(x, [config["batch_size"], -1,3])
     noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
     if(config['e_project'] == 'zeros'):
+        #y = tf.concat(1, [y, z, z_mu, z_sigma])
+        noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
         y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
     elif(config['e_project'] == 'noise'):
         noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
@@ -310,11 +314,11 @@ def encoder(config, x,y):
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
 
     if config['g_encode_layers']:
-        result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_encoder_conv_', config['g_activation'])
+        result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_encoder_conv_', config['e_activation'])
 
     if(result.get_shape()[1] != output_shape):
         print("(e)Adding linear layer", result.get_shape(), output_shape)
-        result = config['g_activation'](result)
+        result = config['e_activation'](result)
         result = linear(result, output_shape, scope="g_enc_proj")
         if(config['g_batch_norm']):
             result = batch_norm(config['batch_size'], name='g_encoder_bn_lin')(result)
@@ -325,11 +329,18 @@ def encoder(config, x,y):
 
 def approximate_z(config, x, y):
     transfer_fct = config['transfer_fct']
+    x = tf.reshape(x, [config["batch_size"], -1,3])
+    noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
     n_input = config['n_input']
     n_hidden_recog_1 = int(config['n_hidden_recog_1'])
     n_hidden_recog_2 = int(config['n_hidden_recog_2'])
     n_z = int(config['z_dim'])
-    print('nz', n_z, type(n_z))
+    if(config['e_project'] == 'zeros'):
+        noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
+        y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
+        y = tf.reshape(y, [config['batch_size'], int(x.get_shape()[1]), 1])
+    result = tf.concat(2, [x,y])
+    result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
     weights = {
             'h1': tf.get_variable('g_h1', [n_input+Y_DIMS, n_hidden_recog_1], initializer=tf.contrib.layers.xavier_initializer()),
             'h2': tf.get_variable('g_h2', [n_hidden_recog_1, n_hidden_recog_2], initializer=tf.contrib.layers.xavier_initializer()),
@@ -340,29 +351,30 @@ def approximate_z(config, x, y):
             'b_out_mean': tf.get_variable('g_b_out_mean', initializer=tf.zeros([n_z], dtype=tf.float32)),
             'b_out_log_sigma': tf.get_variable('g_b_out_log_sigma', initializer=tf.zeros([n_z], dtype=tf.float32))
             }
-    x = tf.reshape(x, [config['batch_size'], n_input])
-    y = tf.reshape(y, [config['batch_size'], Y_DIMS])
-    x = tf.concat(1,[x,y])
-    layer_1 = transfer_fct(tf.add(tf.matmul(x, weights['h1']), 
-                                       weights['b1'])) 
-    layer_2 = transfer_fct(tf.add(tf.matmul(layer_1, weights['h2']), 
-                                       weights['b2'])) 
-    mu = tf.add(tf.matmul(layer_2, weights['out_mean']),
+    if config['g_encode_layers']:
+        result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_vae_', transfer_fct)
+
+    result = transfer_fct(result)
+
+    result = linear(result, n_hidden_recog_2, 'g_vae_output')
+    result = batch_norm(config['batch_size'], name='g_vae_bn')(result)
+    result = transfer_fct(result)
+
+    mu = tf.add(tf.matmul(result, weights['out_mean']),
                         weights['b_out_mean'])
     sigma = \
-        tf.add(tf.matmul(layer_2, weights['out_log_sigma']), 
+        tf.add(tf.matmul(result, weights['out_log_sigma']), 
                weights['b_out_log_sigma'])
 
 
     n_z = int(config["z_dim"])
     eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
                            dtype=tf.float32)
+
     z = tf.add(mu, tf.mul(tf.sqrt(tf.exp(sigma)), eps))
     if(config['e_last_layer']):
         z = config['e_last_layer'](z)
     return z, mu, sigma
-
-
 def sigmoid_kl_with_logits(logits, targets):
     print(targets)
     # broadcasts the same target value across the whole batch
@@ -380,8 +392,8 @@ def create(config, x,y):
     print(y)
 
     #x = x/tf.reduce_max(tf.abs(x), 0)
-    encoded_z = encoder(config, x,y)
     z, z_mu, z_sigma = approximate_z(config, x, y)
+    encoded_z = encoder(config, x,y,z,z_mu,z_sigma)
 
     print("Build generator")
     g = generator(config, y, z)
