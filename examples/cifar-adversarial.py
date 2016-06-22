@@ -272,6 +272,25 @@ def discriminator(config, x, z,g,gz, reuse=False):
                 last_layer]
 
 
+def build_conv_tower(result, layers, filter, batch_size, batch_norm_enabled, name, activation):
+    for i, layer in enumerate(layers):
+        print('-!-', result, tf.reshape(result, [batch_size, -1]))
+        print(layer)
+        stride = 2
+        if filter > result.get_shape()[2]:
+            filter = int(result.get_shape()[2])
+            stride = 1
+        result = conv2d(result, layer, name=name+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
+        if(len(layers) == i+1):
+            print("Skipping last layer")
+        else:
+            print("Adding nonlinear")
+            if(batch_norm_enabled):
+                result = batch_norm(batch_size, name=name+'_bn_'+str(i))(result)
+            result = activation(result)
+        print(tf.reshape(result, [batch_size, -1]))
+    result = tf.reshape(result, [batch_size, -1])
+    return result
 
 def encoder(config, x,y):
     deconv_shape = None
@@ -291,29 +310,14 @@ def encoder(config, x,y):
     result = tf.reshape(result, [config["batch_size"], X_DIMS[0],X_DIMS[1],4])
 
     if config['g_encode_layers']:
-        print('-!-', tf.reshape(result, [config['batch_size'], -1]))
-        for i, layer in enumerate(config['g_encode_layers']):
-            print(layer)
-            filter = config['e_conv_size']
-            stride = 2
-            #if filter > result.get_shape()[2]:
-            #    filter = int(result.get_shape()[2])
-            #    stride = 1
-            result = conv2d(result, layer, name='g_enc_conv'+str(i), k_w=filter, k_h=filter, d_h=stride, d_w=stride)
-            if(len(config['g_encode_layers']) == i+1):
-                print("Skipping last layer")
-            else:
-                print("Adding nonlinear")
-                if(config['d_batch_norm']):
-                    result = batch_norm(config['batch_size'], name='g_enc_conv_bn_'+str(i))(result)
-                result = config['g_activation'](result)
-            print(tf.reshape(result, [config['batch_size'], -1]))
-        result = tf.reshape(result, [config["batch_size"], -1])
+        result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_encoder_conv_', config['g_activation'])
 
     if(result.get_shape()[1] != output_shape):
         print("(e)Adding linear layer", result.get_shape(), output_shape)
         result = config['g_activation'](result)
         result = linear(result, output_shape, scope="g_enc_proj")
+        if(config['g_batch_norm']):
+            result = batch_norm(config['batch_size'], name='g_encoder_bn_lin')(result)
 
     if(config['e_last_layer']):
         result = config['e_last_layer'](result)
@@ -658,6 +662,8 @@ def get_function(name):
         return tf.nn.elu
     if(name == "function:tensorflow.python.ops.nn_ops.elu"):
         return tf.nn.elu
+    if(name == "function:tensorflow.python.ops.math_ops.tanh"):
+        return tf.nn.tanh
     return eval(name.split(":")[1])
 for config in hc.configs(1):
     if(args.load_config):
