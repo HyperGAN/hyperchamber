@@ -7,7 +7,9 @@ import os
 import sys
 import time
 import numpy as np
+import tensorflow
 import tensorflow as tf
+import copy
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -678,7 +680,7 @@ def get_function(name):
         return tf.nn.tanh
     return eval(name.split(":")[1])
 for config in hc.configs(1):
-    other_config = config
+    other_config = copy.copy(config)
     if(args.load_config):
         print("Loading config", args.load_config)
         config.update(hc.io.load_config(args.load_config))
