@@ -90,6 +90,8 @@ def maybe_download_and_extract():
 
 def plot(config, image, file):
     """ Plot a single CIFAR image."""
+    image = np.squeeze(image)
+    print(file, image.shape)
     imsave(file, image)
 
 

@@ -29,9 +29,9 @@ parser.add_argument('--d_batch_norm', type=bool)
 parser.add_argument('--no_stop', type=bool)
 
 args = parser.parse_args()
-start=.0002
-end=.003
-num=100
+start=.00001
+end=.002
+num=1000
 hc.set("g_learning_rate", list(np.linspace(start, end, num=num)))
 hc.set("d_learning_rate", list(np.linspace(start, end, num=num)))
 
@@ -48,29 +48,28 @@ hc.set('d_add_noise', [True])
 
 hc.set("n_input", 32*32*3)
 
-conv_g_layers = [[i*8, i*4, 3] for i in [16,32]]
-conv_g_layers = [[i*8, i*4, i*2, 3] for i in [16,32]]
-conv_g_layers += [[i*8, i*4, i*2, i] for i in [16,32]]
-conv_g_layers += [[i*16, i*8, i*4, i*2, 3] for i in [8, 16]]
-conv_g_layers += [[i*16, i*8, i*4, i*2, i, 3] for i in [4, 6, 8]]
+#conv_g_layers = [[i*8, i*4, 3] for i in [16,32]]
+#conv_g_layers = [[i*8, i*4, i*2, 3] for i in [16,32]]
+#conv_g_layers += [[i*16, i*8, i*4, i*2, 3] for i in [8, 16]]
+conv_g_layers = [[i*16, i*8, i*4, i*2, i, 3] for i in np.arange(2, 9)]
 
-conv_g_layers+=[[i*16,i*8, i*4, 3] for i in list(np.arange(2, 16))]
+#conv_g_layers+=[[i*16,i*8, i*4, 3] for i in list(np.arange(2, 16))]
 
-conv_d_layers = [[i, i*2, i*4, i*8] for i in list(np.arange(32, 128))] 
-conv_d_layers += [[i, i*2, i*4, i*8] for i in list(np.arange(16,32))] 
-conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [12, 16, 32, 64]] 
+#conv_d_layers = [[i, i*2, i*4, i*8] for i in list(np.arange(32, 128))] 
+#conv_d_layers += [[i, i*2, i*4, i*8] for i in list(np.arange(16,32))] 
+conv_d_layers = [[i, i*2, i*4, i*8, i*16, i*32] for i in np.arange(8,16)]
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
 
-hc.set("conv_size", [3, 4, 5])
-hc.set("d_conv_size", [3, 4, 5])
-hc.set("e_conv_size", [3, 4])
+hc.set("conv_size", [5])
+hc.set("d_conv_size", [4])
+hc.set("e_conv_size", [3])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
-g_encode_layers = conv_d_layers
+g_encode_layers = [[i, i*2, i*4] for i in list(np.arange(16, 64))] 
 hc.set("g_encode_layers", g_encode_layers)
 
-hc.set("z_dim", list(np.arange(32,128)))
+hc.set("z_dim", list(np.arange(2,300)))
 
 hc.set("regularize", [True])
 hc.set("regularize_lambda", list(np.linspace(0.0001, 1, num=30)))
@@ -98,13 +97,13 @@ hc.set("latent_loss", [True])
 hc.set("latent_lambda", list(np.linspace(0.01, .5, num=30)))
 hc.set("g_dropout", list(np.linspace(0.6, 0.99, num=30)))
 
-hc.set("g_project", ['zeros'])
+hc.set("g_project", ['noise'])
 hc.set("d_project", ['zeros'])
 hc.set("e_project", ['zeros'])
 
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
-hc.set("model", "mikkel/cifar-adversarial:0.2")
+hc.set("model", "mikkel/cifar-adversarial:0.3")
 hc.set("version", "0.0.1")
 hc.set("machine", "mikkel")
 
@@ -268,6 +267,8 @@ for config in hc.configs(1):
     config['e_last_layer']=get_function(config['e_last_layer'])
     config['g_encode_layers']=other_config['g_encode_layers']
     config['e_conv_size']=other_config['e_conv_size']
+    config['z_dim']=other_config['z_dim']
+    config['mse_loss']=False#other_config['mse_loss']
     print(config)
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")

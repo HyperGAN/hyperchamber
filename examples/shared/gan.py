@@ -5,23 +5,31 @@ import tensorflow as tf
 def generator(config, y,z, reuse=False):
     x_dims = config['x_dims']
     with(tf.variable_scope("generator", reuse=reuse)):
-        output_shape = x_dims[0]*x_dims[1]*3
+        output_shape = x_dims[0]*x_dims[1]*config['channels']
         z_proj_dims = int(config['conv_g_layers'][0])*2
         z_dims = int(z.get_shape()[1])
         print("z_proj_dims", z_proj_dims, z_dims, config['y_dims'])
         noise_dims = z_proj_dims-z_dims-config['y_dims']
         print(noise_dims)
-        noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
-        if(config['g_project'] == 'noise'):
-            result = tf.concat(1, [y, z, noise])
-        elif(config['g_project'] == 'zeros'):
+        if(noise_dims < 0):
             result = tf.concat(1, [y, z])
-            #result = z
-            result = tf.pad(result, [[0, 0],[noise_dims//2, noise_dims//2]])
+            result = linear(result, z_proj_dims, 'g_noise_proj')
+            if(config['g_batch_norm']):
+                result = batch_norm(config['batch_size'], name='g_noise_bn')(result)
+            result = config['g_activation'](result)
         else:
-            result = tf.concat(1, [y, z])
-            #result = z
-            result = linear(result, z_proj_dims, 'g_input_proj')
+            noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
+
+            if(config['g_project'] == 'noise'):
+                result = tf.concat(1, [y, z, noise])
+            elif(config['g_project'] == 'zeros'):
+                result = tf.concat(1, [y, z])
+                #result = z
+                result = tf.pad(result, [[0, 0],[noise_dims//2, noise_dims//2]])
+            else:
+                result = tf.concat(1, [y, z])
+                #result = z
+                result = linear(result, z_proj_dims, 'g_input_proj')
 
         def build_layers(result, z_proj_dims, offset):
             if config['conv_g_layers']:
@@ -47,17 +55,6 @@ def generator(config, y,z, reuse=False):
                 return result
         result = build_layers(result, z_proj_dims, 0)
 
-        print("Output shape is ", result.get_shape(), output_shape)
-        if(result.get_shape()[1]*result.get_shape()[2]*result.get_shape()[3] != output_shape):
-            print("Adding linear layer", result.get_shape(), output_shape)
-            result = tf.reshape(result,[config['batch_size'], -1])
-            result = tf.nn.dropout(result, config['g_dropout'])
-            result = config['g_activation'](result)
-            result = linear(result, output_shape, scope="g_proj")
-            result = tf.reshape(result, [config["batch_size"], x_dims[0], x_dims[1], 3])
-            if(config['g_batch_norm']):
-                result = batch_norm(config['batch_size'], name='g_proj_bn')(result)
-        print("Adding last layer", config['g_last_layer'])
         if(config['g_last_layer']):
             result = config['g_last_layer'](result)
         return result
@@ -70,9 +67,11 @@ def discriminator(config, x, z,g,gz, reuse=False):
     single_batch_size = config['batch_size']
     x = tf.concat(0, [x,g])
     z = tf.concat(0, [z,gz])
-    x = tf.reshape(x, [batch_size, -1, 3])
+    x = tf.reshape(x, [batch_size, -1, config['channels']])
     if(config['d_add_noise']):
         x += tf.random_normal(x.get_shape(), mean=0, stddev=0.1)
+
+    channels = (config['channels']+1)
 
     if(config['d_project'] == 'zeros'):
         noise_dims = int(x.get_shape()[1])-int(z.get_shape()[1])
@@ -83,11 +82,11 @@ def discriminator(config, x, z,g,gz, reuse=False):
     else:
         x = tf.reshape(x, [batch_size, -1])
         result = tf.concat(1, [z,x])
-        result = linear(result, x_dims[0]*x_dims[1]*4, scope='d_z')
+        result = linear(result, x_dims[0]*x_dims[1]*channels, scope='d_z')
         result = config['d_activation'](result)
 
     if config['conv_d_layers']:
-        result = tf.reshape(result, [batch_size, x_dims[0],x_dims[1],4])
+        result = tf.reshape(result, [batch_size, x_dims[0],x_dims[1],channels])
         for i, layer in enumerate(config['conv_d_layers']):
             filter = config['d_conv_size']
             stride = 2
@@ -110,7 +109,7 @@ def discriminator(config, x, z,g,gz, reuse=False):
         big += np.eye(batch_size)
         big = tf.expand_dims(big, 1)
 
-        abs_dif = tf.reduce_sum(tf.abs(tf.expand_dims(activation, 3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)), 2)
+        abs_dif = tf.reduce_sum(tf.abs(tf.expand_dims(activation,3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)), 2)
         mask = 1. - big
         masked = tf.exp(-abs_dif) * mask
         def half(tens, second):
@@ -192,8 +191,9 @@ def encoder(config, x,y, z,z_mu,z_sigma):
     x_dims = config['x_dims']
     deconv_shape = None
     output_shape = config['z_dim']
-    x = tf.reshape(x, [config["batch_size"], -1,3])
+    x = tf.reshape(x, [config["batch_size"], -1,config['channels']])
     noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
+    channels = (config['channels']+1)
     if(config['e_project'] == 'zeros'):
         #y = tf.concat(1, [y, z, z_mu, z_sigma])
         noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
@@ -207,7 +207,7 @@ def encoder(config, x,y, z,z_mu,z_sigma):
  
     y = tf.reshape(y, [config['batch_size'], int(x.get_shape()[1]), 1])
     result = tf.concat(2, [x,y])
-    result = tf.reshape(result, [config["batch_size"], x_dims[0],x_dims[1],4])
+    result = tf.reshape(result, [config["batch_size"], x_dims[0],x_dims[1],channels])
 
     if config['g_encode_layers']:
         result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_encoder_conv_', config['e_activation'])
@@ -226,12 +226,13 @@ def encoder(config, x,y, z,z_mu,z_sigma):
 def approximate_z(config, x, y):
     x_dims = config['x_dims']
     transfer_fct = config['transfer_fct']
-    x = tf.reshape(x, [config["batch_size"], -1,3])
+    x = tf.reshape(x, [config["batch_size"], -1,config['channels']])
     noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
     n_input = config['n_input']
     n_hidden_recog_1 = int(config['n_hidden_recog_1'])
     n_hidden_recog_2 = int(config['n_hidden_recog_2'])
     n_z = int(config['z_dim'])
+    channels = (config['channels']+1)
     if(config['e_project'] == 'zeros'):
         noise_dims = int(x.get_shape()[1])-config['y_dims']
         #y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
@@ -240,41 +241,38 @@ def approximate_z(config, x, y):
         #y = tf.reshape(y, [config['batch_size'], int(x.get_shape()[1]), 1])
     #result = tf.concat(2, [x,y])
     print(result)
-    result = tf.reshape(result, [config["batch_size"], x_dims[0],x_dims[1],4])
-    weights = {
-            'h1': tf.get_variable('g_h1', [n_input+config['y_dims'], n_hidden_recog_1], initializer=tf.contrib.layers.xavier_initializer()),
-            'h2': tf.get_variable('g_h2', [n_hidden_recog_1, n_hidden_recog_2], initializer=tf.contrib.layers.xavier_initializer()),
-            'out_mean': tf.get_variable('g_out_mean', [n_hidden_recog_2, n_z], initializer=tf.contrib.layers.xavier_initializer()),
-            'out_log_sigma': tf.get_variable('g_out_log_sigma', [n_hidden_recog_2, n_z], initializer=tf.contrib.layers.xavier_initializer()),
-            'b1': tf.get_variable('g_b1', initializer=tf.zeros([n_hidden_recog_1], dtype=tf.float32)),
-            'b2': tf.get_variable('g_b2', initializer=tf.zeros([n_hidden_recog_2], dtype=tf.float32)),
-            'b_out_mean': tf.get_variable('g_b_out_mean', initializer=tf.zeros([n_z], dtype=tf.float32)),
-            'b_out_log_sigma': tf.get_variable('g_b_out_log_sigma', initializer=tf.zeros([n_z], dtype=tf.float32))
-            }
+    result = tf.reshape(result, [config["batch_size"], x_dims[0],x_dims[1],channels])
+
     if config['g_encode_layers']:
         result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_vae_', transfer_fct)
 
     result = transfer_fct(result)
 
-    result = linear(result, n_hidden_recog_2, 'g_vae_output')
-    result = batch_norm(config['batch_size'], name='g_vae_bn')(result)
-    result = transfer_fct(result)
+    b_out_mean= tf.get_variable('g_b_out_mean', initializer=tf.zeros([n_z], dtype=tf.float32))
+    out_mean= tf.get_variable('g_out_mean', [result.get_shape()[1], n_z], initializer=tf.contrib.layers.xavier_initializer())
+    mu = tf.add(tf.matmul(result, out_mean),b_out_mean)
 
-    mu = tf.add(tf.matmul(result, weights['out_mean']),
-                        weights['b_out_mean'])
-    sigma = \
-        tf.add(tf.matmul(result, weights['out_log_sigma']), 
-               weights['b_out_log_sigma'])
+    out_log_sigma=tf.get_variable('g_out_log_sigma', [result.get_shape()[1], n_z], initializer=tf.contrib.layers.xavier_initializer())
+    b_out_log_sigma= tf.get_variable('g_b_out_log_sigma', initializer=tf.zeros([n_z], dtype=tf.float32))
+    sigma = tf.add(tf.matmul(result, out_log_sigma),b_out_log_sigma)
 
+    e_projected_z=tf.get_variable('g_encoded_z', [result.get_shape()[1], n_z], initializer=tf.contrib.layers.xavier_initializer())
+    b_encoded_z= tf.get_variable('g_b_encoded_z', initializer=tf.zeros([n_z], dtype=tf.float32))
+    e_z = tf.add(tf.matmul(result, e_projected_z),b_encoded_z)
 
     n_z = int(config["z_dim"])
     eps = tf.random_normal((config['batch_size'], n_z), 0, 1, 
                            dtype=tf.float32)
 
     z = tf.add(mu, tf.mul(tf.sqrt(tf.exp(sigma)), eps))
+    z = batch_norm(config['batch_size'], name='g_e_z_bn')(z)
+
+    e_z = batch_norm(config['batch_size'], name='g_e_ez_bn')(e_z)
+
     if(config['e_last_layer']):
         z = config['e_last_layer'](z)
-    return z, mu, sigma
+        e_z = config['e_last_layer'](e_z)
+    return e_z, z, mu, sigma
 def sigmoid_kl_with_logits(logits, targets):
     print(targets)
     # broadcasts the same target value across the whole batch
@@ -292,8 +290,8 @@ def create(config, x,y):
     print(y)
 
     #x = x/tf.reduce_max(tf.abs(x), 0)
-    z, z_mu, z_sigma = approximate_z(config, x, y)
-    encoded_z = encoder(config, x,y,z,z_mu,z_sigma)
+    encoded_z, z, z_mu, z_sigma = approximate_z(config, x, y)
+    #encoded_z = encoder(config, x,y,z,z_mu,z_sigma)
 
     print("Build generator")
     g = generator(config, y, z)

@@ -2,7 +2,10 @@ import hyperchamber as hc
 from shared.ops import *
 from shared.util import *
 from shared.gan import *
+from shared.gan import *
+from shared.gan import *
 import shared
+import json
 
 import shared.data_loader
 import os
@@ -26,8 +29,10 @@ parser = argparse.ArgumentParser(description='Runs the GAN.')
 parser.add_argument('--load_config', type=str)
 parser.add_argument('--epochs', type=int, default=10)
 
+parser.add_argument('--channels', type=int, default=3)
 parser.add_argument('--directory', type=str)
 parser.add_argument('--no_stop', type=bool)
+parser.add_argument('--crop', type=bool, default=True)
 
 args = parser.parse_args()
 start=.00001
@@ -49,25 +54,25 @@ hc.set('d_add_noise', [True])
 
 hc.set("n_input", 64*64*3)
 
-conv_g_layers = [[i*8, i*4, 3] for i in [16,32]]
-conv_g_layers = [[i*8, i*4, i*2, 3] for i in [16,32]]
-conv_g_layers += [[i*16, i*8, i*4, i*2, 3] for i in [8, 16]]
-conv_g_layers += [[i*16, i*8, i*4, i*2, i, 3] for i in [4, 6, 8]]
+conv_g_layers = [[i*8, i*4] for i in [16,32]]
+conv_g_layers = [[i*8, i*4, i*2] for i in [16,32]]
+conv_g_layers += [[i*16, i*8, i*4, i*2] for i in [8, 16]]
+conv_g_layers += [[i*16, i*8, i*4, i*2, i] for i in [4, 6, 8]]
 
-conv_g_layers+=[[i*16,i*8, i*4, 3] for i in list(np.arange(2, 16))]
+conv_g_layers+=[[i*16,i*8, i*4] for i in list(np.arange(2, 16))]
 
 conv_d_layers = [[i, i*2, i*4, i*8] for i in list(np.arange(32, 128))] 
 conv_d_layers += [[i, i*2, i*4, i*8] for i in list(np.arange(16,32))] 
 conv_d_layers += [[i, i*2, i*4, i*8, i*16] for i in [12, 16, 32, 64]] 
 #conv_d_layers = [[32, 32*2, 32*4],[32, 64, 64*2],[64,64*2], [16,16*2, 16*4], [16,16*2]]
 
-hc.set("conv_size", [3])
-hc.set("d_conv_size", [3])
-hc.set("e_conv_size", [3])
+hc.set("conv_size", [3, 4, 5])
+hc.set("d_conv_size", [3, 4, 5])
+hc.set("e_conv_size", [3, 4, 5])
 hc.set("conv_g_layers", conv_g_layers)
 hc.set("conv_d_layers", conv_d_layers)
 
-g_encode_layers = [[i, i*2, i*4] for i in list(np.arange(16, 64))] 
+g_encode_layers = [[i, i*2, i*4, i*8] for i in list(np.arange(8, 32))] 
 hc.set("g_encode_layers", g_encode_layers)
 
 hc.set("z_dim", list(np.arange(2,300)))
@@ -104,32 +109,30 @@ hc.set("e_project", ['zeros'])
 
 BATCH_SIZE=64
 hc.set("batch_size", BATCH_SIZE)
-hc.set("model", "martyn/dog:0.1")
+hc.set("model", "martyn/fonts:0.1")
 hc.set("version", "0.0.1")
 hc.set("machine", "martyn")
 
 
-X_DIMS=[64,64]
-
 def sample_input(sess, config):
     x = get_tensor("x")
+    y = get_tensor("y")
     encoded = get_tensor('encoded')
-    sample, encoded = sess.run([x, encoded])
-    return sample[0], encoded[0]
+    sample, encoded, label = sess.run([x, encoded, y])
+    return sample[0], encoded[0], label[0]
 
 
-def split_sample(n, sample):
-    return [np.reshape(sample[0+i:1+i], [X_DIMS[0],X_DIMS[1], 3]) for i in range(n)]
+def split_sample(n, sample, x_dims, channels):
+    return [np.reshape(sample[0+i:1+i], [x_dims[0],x_dims[1], channels]) for i in range(n)]
 def samples(sess, config):
     generator = get_tensor("g")
     y = get_tensor("y")
     x = get_tensor("x")
     rand = np.random.randint(0,config['y_dims'], size=config['batch_size'])
     random_one_hot = np.eye(config['y_dims'])[rand]
-    #x_input = np.random.normal(0, 1, [config['batch_size'], X_DIMS[0],X_DIMS[1],3])
     sample = sess.run(generator, feed_dict={y:random_one_hot})
     #sample =  np.concatenate(sample, axis=0)
-    return split_sample(10, sample)
+    return split_sample(10, sample, config['x_dims'], config['channels'])
 
 def plot_mnist_digit(config, image, file):
     """ Plot a single MNIST image."""
@@ -143,10 +146,9 @@ def plot_mnist_digit(config, image, file):
 
 def epoch(sess, config):
     batch_size = config["batch_size"]
-    n_samples =  cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+    n_samples =  config['examples_per_epoch']
     total_batch = int(n_samples / batch_size)
     for i in range(total_batch):
-        #x=np.reshape(x, [batch_size, X_DIMS[0], X_DIMS[1], 3])
         d_loss, g_loss = train(sess, config)
         if(i > 10 and not args.no_stop):
         
@@ -171,13 +173,21 @@ def test_config(sess, config):
     return results
 
 def test_epoch(epoch, j, sess, config):
-    x, encoded = sample_input(sess, config)
+    x, encoded, label = sample_input(sess, config)
     sample_file = "samples/input-"+str(j)+".png"
     cifar_utils.plot(config, x, sample_file)
     encoded_sample = "samples/encoded-"+str(j)+".png"
     cifar_utils.plot(config, encoded, encoded_sample)
+
+    def to_int(one_hot):
+        i = 0
+        for l in list(one_hot):
+            if(l>0.5):
+                return i
+            i+=1
+        return None
     
-    sample_file = {'image':sample_file, 'label':'input'}
+    sample_file = {'image':sample_file, 'label':json.dumps(to_int(label))}
     encoded_sample = {'image':encoded_sample, 'label':'reconstructed'}
     sample = samples(sess, config)
     sample_list = [sample_file, encoded_sample]
@@ -272,14 +282,18 @@ for config in hc.configs(1):
     print("Testing configuration", config)
     print("TODO: TEST BROKEN")
     sess = tf.Session()
-    train_x,train_y, num_labels = shared.data_loader.labelled_image_tensors_from_directory(args.directory,config['batch_size'])
+    format = 'png'
+    channels = args.channels
+    crop = args.crop
+    train_x,train_y, num_labels,examples_per_epoch = shared.data_loader.labelled_image_tensors_from_directory(args.directory,config['batch_size'], channels=channels, format=format,crop=crop)
     config['y_dims']=num_labels
-    config['x_dims']=X_DIMS
+    config['x_dims']=[64,64]
+    config['channels']=channels
+    config['conv_g_layers'].append(channels)
+    config['examples_per_epoch']=examples_per_epoch
     x = train_x
     y = train_y
     y=tf.one_hot(tf.cast(train_y,tf.int64), config['y_dims'], 1.0, 0.0)
-    #x = tf.get_variable('x', [BATCH_SIZE, X_DIMS[0], X_DIMS[1], 3], tf.float32)
-    #y = tf.get_variable('y', [BATCH_SIZE, Y_DIMS], tf.float32)
     graph = create(config,x,y)
     init = tf.initialize_all_variables()
     sess.run(init)
