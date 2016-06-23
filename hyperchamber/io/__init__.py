@@ -2,6 +2,7 @@ import requests
 import json
 import sys
 import os
+import uuid
 
 from json import JSONEncoder
 
@@ -78,4 +79,7 @@ def record(config, result, max_retries=10):
 def load_config(id):
     url = get_api_path('config/'+id+'.json')
     r = requests.get(url, headers=get_headers())
-    return json.loads(r.text)
+    config = json.loads(r.text)
+    config['parent_uuid']=id
+    config["uuid"]=uuid.uuid4().hex
+    return config
