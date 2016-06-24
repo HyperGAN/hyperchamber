@@ -192,48 +192,11 @@ def build_conv_tower(result, layers, filter, batch_size, batch_norm_enabled, nam
     return result
 
 
-def encoder(config, x,y, z,z_mu,z_sigma):
-    x_dims = config['x_dims']
-    deconv_shape = None
-    output_shape = config['z_dim']
-    x = tf.reshape(x, [config["batch_size"], -1,config['channels']])
-    noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
-    channels = (config['channels']+1)
-    if(config['e_project'] == 'zeros'):
-        #y = tf.concat(1, [y, z, z_mu, z_sigma])
-        noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
-        y = tf.concat(1, [y, tf.zeros([config['batch_size'], noise_dims])])
-        #y = tf.pad(y, [[0, 0],[noise_dims//2, noise_dims//2]])
-    elif(config['e_project'] == 'noise'):
-        noise = tf.random_uniform([config['batch_size'], noise_dims],-1, 1)
-        y = tf.concat(1, [y, noise])
-    else:
-        y = linear(y, int(x.get_shape()[1]), scope='g_y')
- 
-    y = tf.reshape(y, [config['batch_size'], int(x.get_shape()[1]), 1])
-    result = tf.concat(2, [x,y])
-    result = tf.reshape(result, [config["batch_size"], x_dims[0],x_dims[1],channels])
-
-    if config['g_encode_layers']:
-        result = build_conv_tower(result, config['g_encode_layers'], config['e_conv_size'], config['batch_size'], config['d_batch_norm'], 'g_encoder_conv_', config['e_activation'])
-
-    if(result.get_shape()[1] != output_shape):
-        print("(e)Adding linear layer", result.get_shape(), output_shape)
-        result = config['e_activation'](result)
-        result = linear(result, output_shape, scope="g_enc_proj")
-        if(config['g_batch_norm']):
-            result = batch_norm(config['batch_size'], name='g_encoder_bn_lin')(result)
-
-    if(config['e_last_layer']):
-        result = config['e_last_layer'](result)
-    return result
-
 def approximate_z(config, x, y):
     x_dims = config['x_dims']
     transfer_fct = config['transfer_fct']
     x = tf.reshape(x, [config["batch_size"], -1,config['channels']])
     noise_dims = int(x.get_shape()[1])-int(y.get_shape()[1])
-    n_input = config['n_input']
     n_hidden_recog_1 = int(config['n_hidden_recog_1'])
     n_hidden_recog_2 = int(config['n_hidden_recog_2'])
     n_z = int(config['z_dim'])
@@ -296,11 +259,9 @@ def create(config, x,y):
 
     #x = x/tf.reduce_max(tf.abs(x), 0)
     encoded_z, z, z_mu, z_sigma = approximate_z(config, x, y)
-    #encoded_z = encoder(config, x,y,z,z_mu,z_sigma)
 
     print("Build generator")
     g = generator(config, y, z)
-    print("Build encoder")
     encoded = generator(config, y, encoded_z, reuse=True)
     print("shape of g,x", g.get_shape(), x.get_shape())
     print("shape of z,encoded_z", z.get_shape(), encoded_z.get_shape())

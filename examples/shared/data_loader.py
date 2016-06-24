@@ -11,8 +11,8 @@ def build_labels(dirs):
   return labels,next_id
 def labelled_image_tensors_from_directory(directory, batch_size, channels=3, format='jpg', width=64, height=64, crop=True):
   filenames = glob.glob(directory+"/**/*."+format)
-  labels,total_labels = build_labels(glob.glob(directory+"/*"))
-  num_examples_per_epoch = len(filenames)//1000
+  labels,total_labels = build_labels(sorted(glob.glob(directory+"/*")))
+  num_examples_per_epoch = 40000
 
   # Create a queue that produces the filenames to read.
   classes = [labels[f.split('/')[-2]] for f in filenames]
@@ -66,7 +66,7 @@ def labelled_image_tensors_from_directory(directory, batch_size, channels=3, for
   return x, y,total_labels, num_examples_per_epoch
 
 def _get_data(image, label, min_queue_examples, batch_size):
-  num_preprocess_threads = 3
+  num_preprocess_threads = 8
   print(image, label)
   images, label_batch = tf.train.shuffle_batch(
       [image, label],

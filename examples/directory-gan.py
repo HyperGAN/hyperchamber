@@ -34,6 +34,9 @@ parser.add_argument('--directory', type=str)
 parser.add_argument('--no_stop', type=bool)
 parser.add_argument('--crop', type=bool, default=True)
 
+parser.add_argument('--width', type=int, default=64)
+parser.add_argument('--height', type=int, default=64)
+
 args = parser.parse_args()
 start=.00001
 end=.002
@@ -165,7 +168,7 @@ def epoch(sess, config):
 
 def test_config(sess, config):
     batch_size = config["batch_size"]
-    n_samples =  cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+    n_samples =  batch_size*10
     total_batch = int(n_samples / batch_size)
     results = []
     for i in range(total_batch):
@@ -244,7 +247,6 @@ print("Generating configs with hyper search space of ", hc.count_configs())
 
 j=0
 k=0
-cifar_utils.maybe_download_and_extract()
 
 def get_function(name):
     if not isinstance(name, str):
