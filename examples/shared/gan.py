@@ -33,7 +33,12 @@ def generator(config, y,z, reuse=False):
 
         def build_layers(result, z_proj_dims, offset):
             if config['conv_g_layers']:
-                result = tf.reshape(result, [config['batch_size'], 4,4,z_proj_dims//16])
+                if(z_proj_dims % 16 == 0 and config['x_dims'][0]%4 == 0):
+                    result = tf.reshape(result, [config['batch_size'], 4,4,z_proj_dims//16])
+                elif(z_proj_dims % 36 == 0 and config['x_dims'][0]%6 == 0):
+                    result = tf.reshape(result, [config['batch_size'], 6,6,z_proj_dims//36])
+                else:
+                    print('z_proj dims not divisible by 4 or 8')
                 #result = tf.nn.dropout(result, 0.7)
                 for i, layer in enumerate(config['conv_g_layers']):
                     j=int(result.get_shape()[1]*2)

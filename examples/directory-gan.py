@@ -172,6 +172,11 @@ def test_config(sess, config):
         results.append(test(sess, config))
     return results
 
+def collect_measurements(epoch, sess, config):
+    return {
+            'epoch': epoch
+            }
+
 def test_epoch(epoch, j, sess, config):
     x, encoded, label = sample_input(sess, config)
     sample_file = "samples/input-"+str(j)+".png"
@@ -197,7 +202,8 @@ def test_epoch(epoch, j, sess, config):
         sample_list.append({'image':sample_file,'label':'sample-'+str(j)})
         j+=1
     print("Creating sample")
-    hc.io.sample(config, sample_list)
+    measurements = collect_measurements(epoch, sess, config)
+    hc.io.sample(config, sample_list, measurements)
     return j
 
 def record_run(config):
