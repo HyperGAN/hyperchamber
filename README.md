@@ -1,9 +1,35 @@
 # hyperchamber
-Track and optimize your tensorflow hyperparameters.
+Track and optimize your hyperparameters.
 
-Integrates with [Hyperchamber](https://hyperchamber.255bits.com)
+You set a list of options that define your hyperparams:
+```python
+import hyperchamber as hc
 
-# Examples
+hc.set('learning_rate', [0.1, 0.2, 0.5])
+config = hc.random_config() # => { 'learning_rate' : 0.2 }
+```
+
+Optionally integrates with [Hyperchamber](https://hyperchamber.255bits.com) for saving configuration results.
+
+As you train your model you can send samples, and configuration results to hyperchamber.io.
+
+## A quick note from the author
+
+Designing working neural network configurations currently involves a large amount of trial and error.  
+A single network parameter can single handedly break a network and can be hard to debug.
+With hyperchamber, you can take the hacker approach of:
+
+* test random combinations
+* see what works
+* repeat as necessary
+
+Then you do not need to worry as much about debugging networks, instead you just are searching for one that works
+according to your numbers.
+
+A lot of our work on hyperchambers focuses around GAN (generative adversarial networks).  This is because GANs involve
+many networks working with each other.  They are also known for being hard to get working well.
+
+## Examples
 
 Use hyperchamber for:
 
@@ -17,15 +43,7 @@ Based on a simple tensorflow example. We find the best learning rate from a smal
 
 Uses hyperparameter tuning to find the best performing MNIST fully connected deep network configuration.
 
-Our search space of options here is 
-
-* Evolve a network that fits MNIST:
-
-examples/evolve-mnist/
-
-* Evolve RNN types:
-
-examples/evolve-rnn/
+Our search space of options here is now 720 options.  Note we only have 2 variables.  This search space expands exponentially with new options to search.
 
 * Evolve GAN (HyperGAN):
 
