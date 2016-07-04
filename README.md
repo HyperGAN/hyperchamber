@@ -1,23 +1,23 @@
 # hyperchamber
 Track and optimize your tensorflow hyperparameters.
 
+Integrates with [Hyperchamber](https://hyperchamber.255bits.com)
+
 # Examples
 
 Use hyperchamber for:
 
-* Run more experiments
-
-Train multiple neural networks at once, exploiting the parallelism of your GPU
-
 * Track your results across experiments:
 
-examples/track
+[logistic regression classifier on MNIST](examples/track.py)
 
-Use hyperchamber.evolve for:
+Based on a simple tensorflow example. We find the best learning rate from a small set of options.
 
-* Finding a good learning rate for MNIST:
+[Finding a better network architecture for MNIST](examples/mnist.py)
 
-examples/hypertune-mnist/
+Uses hyperparameter tuning to find the best performing MNIST fully connected deep network configuration.
+
+Our search space of options here is 
 
 * Evolve a network that fits MNIST:
 
@@ -37,6 +37,7 @@ examples/report
 
 * Run multiple experiments in parallel
 
+Train multiple neural networks at once, exploiting the parallelism of your GPU
 
 # Running in parallel
 ```python

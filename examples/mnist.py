@@ -1,5 +1,6 @@
 import hyperchamber as hc
 from shared.ops import *
+from shared.util import *
 
 import os
 import time
@@ -11,26 +12,22 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
-learning_rates = [1, 0.75, 0.5, 0.25]
+learning_rates = list(np.linspace(0.0001, 1, num=30))
 hc.set("learning_rate", learning_rates)
-hidden_layers = [ [], [26], [128], [16, 32] ]
-hc.permute.set("hidden_layer", hidden_layers)
+hidden_layers = [ [], [26], [128], [16, 32], [32,16,8],  [16,8,8,4], [64,64]]
+hc.set("hidden_layer", hidden_layers)
+hc.set("activation", [tf.nn.elu, tf.nn.relu, tf.nn.relu6, tf.tanh, tf.sigmoid, lrelu]);
 
 hc.set("batch_size", 128)
 
 X_DIMS=[28,28]
 Y_DIMS=10
 
-#def validate(value):
-#    return value != value #NaN
-
-#hc.evolve.evolve("learn_rate", 0.2, validate)
-
 def hidden_layers(config, x):
     output = tf.reshape(x, [config["batch_size"], X_DIMS[0]*X_DIMS[1]])
     for i, layer in enumerate(config['hidden_layer']):
         output = linear(output, layer, scope="l"+str(i))
-        output = tf.nn.tanh(output)
+        output = config['activation'](output)
     return output
 
 def output_layer(config, x):
@@ -111,7 +108,9 @@ def test_config(sess, config):
     return accuracies, costs
 
 
-for config in hc.configs(100):
+print("Searching randomly with %d possible configurations." % hc.count_configs())
+for i in range(100):
+    config = hc.random_config()
     print("Testing configuration", config)
     sess = tf.Session()
     graph = create(config)
@@ -137,12 +136,5 @@ def by_accuracy(x):
 for config, result in hc.top(by_accuracy):
     print("RESULTS")
     print(config, result)
-    
 
-
-    #print("Done testing.  Final cost was:", hc.cost())
-
-print("Done")
-
-#for gold, silver, bronze in hc.top_configs(3):
 

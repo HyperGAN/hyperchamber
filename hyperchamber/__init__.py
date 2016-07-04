@@ -45,7 +45,7 @@ def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
     for i in range(max_configs):
         # get an element to index over
 
-        config = get_config(offset)
+        config = config_at(offset)
         if(create_uuid):
           config["uuid"]=uuid.uuid4().hex
         configs.append(config)
@@ -55,7 +55,7 @@ def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
             offset = max(0, random.randint(0, count_configs()))
     return configs
 
-def get_config(i):
+def config_at(i):
   """Gets the ith config"""
   selections = {}
   for key in store:
@@ -69,6 +69,9 @@ def get_config(i):
 
   return selections
 
+def random_config():
+  offset = max(0, random.randint(0, count_configs()))
+  return config_at(offset)
 
 def reset():
     """Reset the hyperchamber variables"""
