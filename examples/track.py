@@ -11,6 +11,7 @@ Project: https://github.com/aymericdamien/TensorFlow-Examples/
 '''
 
 import tensorflow as tf
+import hyperchamber as hc
 
 # Import MINST data
 from tensorflow.examples.tutorials.mnist import input_data
