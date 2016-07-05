@@ -20,8 +20,8 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 # Parameters
 # These are what hyperchamber stores and permutes through for you.
 hc.set('learning_rate', [0.01, 0.02, 0.03])
-
 config = hc.random_config() # => {learning_rate: 0.01 or 0.02 or 0.03}
+
 training_epochs = 25
 batch_size = 100
 display_step = 1

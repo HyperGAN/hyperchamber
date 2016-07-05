@@ -31,43 +31,18 @@ many networks working with each other.  They are also known for being hard to ge
 
 ## Examples
 
-Use hyperchamber for:
+* logistic regression classifier on MNIST [code](examples/track.py)
 
-* Track your results across experiments:
+  Based on a simple tensorflow example. We find the best learning rate from a small set of options.
 
-[logistic regression classifier on MNIST](examples/track.py)
+* Finding a better network architecture for MNIST [code](examples/mnist.py)
 
-Based on a simple tensorflow example. We find the best learning rate from a small set of options.
+  Uses hyperparameter tuning to find the best performing MNIST fully connected deep network configuration.
 
-[Finding a better network architecture for MNIST](examples/mnist.py)
+  Our search space of options here is now 720 options.  Note we only have 2 variables.  This search space expands exponentially with new options to search.
 
-Uses hyperparameter tuning to find the best performing MNIST fully connected deep network configuration.
-
-Our search space of options here is now 720 options.  Note we only have 2 variables.  This search space expands exponentially with new options to search.
-
-* Evolve GAN (HyperGAN):
-
-examples/evolve-gan/
-
-* Report your trainings with hyperchamber.report:
-
-examples/report
-
-* Run multiple experiments in parallel
-
-Train multiple neural networks at once, exploiting the parallelism of your GPU
-
-# Running in parallel
-```python
-  x = x[:hc.get('batch_size')]
-
-  # sess is your tensorflow session
-  #runs 5 experiments in parallel
-  _, costs = hc.run(sess, train_step, {hc.getTensor('x'):x}, parallel=5)
-```
 
 This is currently in development and not ready for use (yet).
-
 
 # Installation
 
