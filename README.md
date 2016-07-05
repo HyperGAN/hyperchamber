@@ -65,7 +65,6 @@ Sets a hyperparameter to values.
 
 * If values is an array, config[name] will be set to one element in that array.
 * If values is a scalar, config[name] will always be set to that scalar
-* If values is a scalar, config[name] will always be set to that scalar
 
 ```python
   hc.configs(n)
@@ -99,13 +98,7 @@ Example:
 
 Hyperchamber.io allows you to save and share your hyperparameters across runs and across organizations.
 
-It is currently in alpha state.
-
-```python
-  hc.io.apikey(apikey)
-```
-
-Set the apikey you will use.
+It is currently in an open alpha.  You can sign up at https://hyperchamber.255bits.com
 
 ```python
   hc.io.model(mymodel)
@@ -115,7 +108,12 @@ Models organize your results.  All networks trained on the same model are ranked
 
 Please use the same test and training set across configs for more accurate model comparisons. 
 
-example: hc.io.model('255bits/hypergan.hc')
+example: 
+
+```python
+  hc.io.model('hypergan')
+```
+---
 
 ```python
   hc.io.sample(config, sample)
@@ -123,12 +121,12 @@ example: hc.io.model('255bits/hypergan.hc')
 
 Send a sample to your hyperchamber.io account.  Samples are intrinsic measurements of your model.
 
-Note:  this issues a rate limited HTTP request.  Samples more frequent than the rate limit are not synced. 
+---
 
 ```python
   hc.io.record(config, result)
 ```
 
-Saves the results of your model.  Call this instead of hc.record.
+Saves the results of your model.  result is a freeform dictionary.
 
 
