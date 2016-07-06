@@ -121,7 +121,7 @@ example:
   hc.io.sample(config, sample)
 ```
 
-Send a sample to your hyperchamber.io account.  Samples are intrinsic measurements of your model.
+Send a sample to your hyperchamber.io account.  Samples are intrinsic aspects of your model.
 
 ---
 

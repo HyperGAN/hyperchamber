@@ -39,10 +39,10 @@ def get_headers(no_content_type=False):
     'apikey': apikey
   }
 
-def sample(config, samples, measurements=None):
+def sample(config, samples):
   """Upload a series of samples.  Each sample has keys 'image' and 'label'. 
   Images are ignored if the rate limit is hit."""
-  url = get_api_path('intrinsic.json')
+  url = get_api_path('sample.json')
   multiple_files = []
   images = [s['image'] for s in samples]
   labels = [s['label'] for s in samples]
@@ -51,8 +51,6 @@ def sample(config, samples, measurements=None):
   headers=get_headers(no_content_type=True)
   headers["config"]= json.dumps(config, cls=HCEncoder)
   headers["labels"]= json.dumps(labels)
-  if(measurements):
-      headers["measurements"]= json.dumps(measurements)
   print("With headers", headers)
 
   try:
@@ -63,9 +61,9 @@ def sample(config, samples, measurements=None):
       print("Error while calling hyperchamber - ", e)
       return None
 
-def record(config, result, max_retries=10):
+def measure(config, result, max_retries=10):
   """Records results on hyperchamber.io.  Used when you are done testing a config."""
-  url = get_api_path('run.json')
+  url = get_api_path('measurement.json')
   data = {'config': config, 'result': result}
   retries = 0
   while(retries < max_retries):

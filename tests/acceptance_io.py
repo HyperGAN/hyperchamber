@@ -16,7 +16,7 @@ def test_graph(config, filename, n):
   plt.barh(y_pos, performance, xerr=error, align='center', alpha=0.4)
   plt.yticks(y_pos, people)
   plt.xlabel("Step "+str(n))
-  plt.title('Are intrinsic measurements working?')
+  plt.title('Are samples measurements working?')
 
   plt.savefig(filename)
 
@@ -29,5 +29,5 @@ for config in hc.configs(1):
   graphs = [test_graph(config, filename, i) for i, filename in enumerate(filenames)]
   hc.io.sample(config, [{'image':f, 'label':f} for f in filenames])
 
-  hc.io.record(config, {'ranking': 1})
+  hc.io.measure(config, {'ranking': 1})
   print("Stored config", config)
