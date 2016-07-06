@@ -100,8 +100,10 @@ Hyperchamber.io allows you to save and share your hyperparameters across runs an
 
 It is currently in an open alpha.  You can sign up at https://hyperchamber.255bits.com
 
+---
+
 ```python
-  hc.io.model(mymodel)
+  hc.set('model', modelandtag)
 ```
 
 Models organize your results.  All networks trained on the same model are ranked against each other.
@@ -111,7 +113,7 @@ Please use the same test and training set across configs for more accurate model
 example: 
 
 ```python
-  hc.io.model('hypergan')
+  hc.set('model', 'mnist:0.1')
 ```
 ---
 
