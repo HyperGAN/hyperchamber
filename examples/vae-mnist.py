@@ -105,5 +105,5 @@ for config in hc.configs(10000):
     for i in range(config['epochs']):
         cost = train(config, vae, training_epochs=1)
         sample(config, vae)
-    hc.io.record(config, {"rank": cost})
+    hc.io.measure(config, {"rank": cost})
     visualize(config, vae)

@@ -126,9 +126,13 @@ Send a sample to your hyperchamber.io account.  Samples are intrinsic aspects of
 ---
 
 ```python
-  hc.io.record(config, result)
+  hc.io.measure(config, measurement)
 ```
 
-Saves the results of your model.  result is a freeform dictionary.
+Saves measurements for your model.  measurement is a dictionary with numerical values.
 
+example:
+```
+  measurement = { 'loss': 0.2, 'seconds_taken': 30, 'my_custom_measurement' : 10 }
+```
 
