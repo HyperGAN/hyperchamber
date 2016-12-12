@@ -89,3 +89,26 @@ def top(sort_by):
 def record(config, result):
     """Record the results of a config."""
     results.append((config, result))
+
+# for function serialization
+class HCEncoder(JSONEncoder):
+  def default(self, o):
+    if(hasattr(o, '__call__')): # is function
+      return "function:" +o.__module__+"."+o.__name__
+    else:
+      try:
+          return o.__dict__    
+      except AttributeError:
+          try:
+             return str(o)
+          except AttributeError:
+              return super(o)
+
+def load(filename):
+    """Loads a config from disk"""
+    content = open(filename).read()
+    return jsons.load(content)
+
+def save(config, filename):
+    """Loads a config from disk"""
+    open(filename).read(json.dumps(config, cls=HCEncoder))
