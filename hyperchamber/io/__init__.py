@@ -67,6 +67,8 @@ def load_config(id):
     url = get_api_path('config/'+id+'.json')
     r = requests.get(url, headers=get_headers())
     config = json.loads(r.text)
+    if(not config):
+        config = {}
     config['parent_uuid']=id
     config["uuid"]=uuid.uuid4().hex
     return config
