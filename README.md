@@ -73,17 +73,6 @@ Returns up to n configs of the form {name:value} for each hyperparameter.
 
 
 ```python
-	hc.save(config, filename)
-```
-Saves the config to a file.
-
-```python
-	hc.load(filename)
-```
-Load a configuration from file
-
-
-```python
   hc.record(config, result)
 ```
 Store the cost of a config's training results. 

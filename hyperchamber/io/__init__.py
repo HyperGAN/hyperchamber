@@ -3,15 +3,28 @@ import json
 import sys
 import os
 import uuid
-from hyperchamber import HCEncoder
 
 from json import JSONEncoder
 
 class MissingHCKeyException(Exception):
     pass
 
+class HCEncoder(JSONEncoder):
+  def default(self, o):
+    if(hasattr(o, '__call__')): # is function
+      return "function:" +o.__module__+"."+o.__name__
+    else:
+      try:
+          return o.__dict__    
+      except AttributeError:
+          try:
+             return str(o)
+          except AttributeError:
+              return super(o)
+
 def get_api_path(end):
-  return "https://hyperchamber.255bits.com/api/v1/"+end
+  return "http://localhost:3000/api/v1/"+end
+  #return "https://hyperchamber.255bits.com/api/v1/"+end
 
 def get_headers(no_content_type=False):
   if("HC_API_KEY" not in os.environ):
