@@ -82,6 +82,12 @@ Saves the config to a file.
 ```
 Load a configuration from file
 
+```python
+	hc.load_or_create_config(filename, config)
+```
+Load a configuration from file if that file exists.  Otherwise save `config` to that file.  `config` is assumed to be a Dictionary.
+
+
 
 ```python
   hc.record(config, result)
