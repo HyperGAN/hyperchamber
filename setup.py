@@ -10,6 +10,6 @@ setup(
     install_requires=['requests >= 2.4.2'],
     url='https://github.com/255bits/hyperchamber',
     license='MIT',
-    classifiers=['License :: MIT',
-                 'Programming Language :: Python :: 3'],
+    classifiers=[
+                 ],
 )
