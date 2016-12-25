@@ -35,7 +35,7 @@ def get_config_value(k, i):
 
 def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
     """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] 
-      
+
       Will also add a config UUID, useful for tracking configs.  
       You can turn this off by passing create_uuid=False.
     """
