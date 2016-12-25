@@ -115,7 +115,7 @@ def load(filename):
 
 def load_or_create_config(filename, config):
     """Loads a config from disk"""
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.expanduser(filename)), exist_ok=True)
     if os.path.exists(filename):
         return load(filename)
 
@@ -124,4 +124,4 @@ def load_or_create_config(filename, config):
 
 def save(filename, config):
     """Loads a config from disk"""
-    open(os.path.realpath(filename), 'w').write(json.dumps(config, cls=HCEncoder))
+    open(os.path.expanduser(filename), 'w').write(json.dumps(config, cls=HCEncoder))
