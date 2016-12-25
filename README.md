@@ -1,5 +1,15 @@
 # hyperchamber
-Track and optimize your hyperparameters.
+Random search your hyper parameters.
+
+## Changelog
+
+### 0.2
+
+* local save/load
+
+### 0.1
+
+* initial pip release
 
 You set a list of options that define your hyperparams:
 ```python
@@ -8,26 +18,6 @@ import hyperchamber as hc
 hc.set('learning_rate', [0.1, 0.2, 0.5])
 config = hc.random_config() # => { 'learning_rate' : 0.2 }
 ```
-
-Optionally integrates with [Hyperchamber](https://hyperchamber.255bits.com) for saving configuration results.
-
-As you train your model you can send samples, and configuration results to hyperchamber.io.
-
-## A quick note from the author
-
-Designing working neural network configurations currently involves a large amount of trial and error.  
-A single network parameter can single handedly break a network and can be hard to debug.
-With hyperchamber, you can take the hacker approach of:
-
-* test random combinations
-* see what works
-* repeat as necessary
-
-Then you do not need to worry as much about debugging networks, instead you just are searching for one that works
-according to your numbers.
-
-A lot of our work on hyperchambers focuses around GAN (generative adversarial networks).  This is because GANs involve
-many networks working with each other.  They are also known for being hard to get working well.
 
 ## Examples
 
