@@ -3,6 +3,10 @@ import uuid
 import hyperchamber.io as io
 
 import random
+import os
+
+from json import JSONEncoder
+import json
 
 store = {}
 results = []
@@ -107,8 +111,17 @@ class HCEncoder(JSONEncoder):
 def load(filename):
     """Loads a config from disk"""
     content = open(filename).read()
-    return jsons.load(content)
+    return json.load(content)
 
-def save(config, filename):
+def load_or_create_config(filename, config):
     """Loads a config from disk"""
-    open(filename).read(json.dumps(config, cls=HCEncoder))
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.exists(filename):
+        return load(filename)
+
+    save(filename, config)
+    return config
+
+def save(filename, config):
+    """Loads a config from disk"""
+    open(os.path.realpath(filename), 'w').write(json.dumps(config, cls=HCEncoder))

@@ -90,7 +90,7 @@ Load a configuration from file if that file exists.  Otherwise save `config` to 
 
 
 ```python
-  hc.record(config, result)
+  hc.record(filename, config)
 ```
 Store the cost of a config's training results. 
 
