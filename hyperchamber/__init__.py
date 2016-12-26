@@ -110,7 +110,7 @@ class HCEncoder(JSONEncoder):
 
 def load(filename):
     """Loads a config from disk"""
-    content = open(filename).read()
+    content = open(filename)
     return json.load(content)
 
 def load_or_create_config(filename, config):
