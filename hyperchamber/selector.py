@@ -116,9 +116,9 @@ class Selector:
             return load(filename)
 
         if(config == None):
-            config = random_config()
+            config = self.random_config()
 
-        save(filename, config)
+        self.save(filename, config)
         return config
 
     def save(self, filename, config):
