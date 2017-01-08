@@ -2,6 +2,7 @@ from json import JSONEncoder
 import random
 import os
 import uuid
+import json
 
 
 # for function serialization
@@ -113,7 +114,7 @@ class Selector:
         """Loads a config from disk.  Defaults to a random config if none is specified"""
         os.makedirs(os.path.dirname(os.path.expanduser(filename)), exist_ok=True)
         if os.path.exists(filename):
-            return load(filename)
+            return self.load(filename)
 
         if(config == None):
             config = self.random_config()

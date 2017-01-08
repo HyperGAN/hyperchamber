@@ -2,7 +2,6 @@ import hyperchamber.io as io
 
 from hyperchamber.selector import *
 
-import json
 
 
 default_selector = Selector()
