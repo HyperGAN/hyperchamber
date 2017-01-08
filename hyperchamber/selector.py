@@ -124,4 +124,4 @@ class Selector:
 
     def save(self, filename, config):
         """Loads a config from disk"""
-        return open(os.path.expanduser(filename), 'w').write(json.dumps(config, cls=HCEncoder))   
+        return open(os.path.expanduser(filename), 'w').write(json.dumps(config, cls=HCEncoder, sort_keys=True, indent=2, separators=(',', ': ')))   
