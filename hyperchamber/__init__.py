@@ -1,37 +1,25 @@
-import uuid
-
 import hyperchamber.io as io
 
-import random
-import os
+from hyperchamber.selector import *
 
-from json import JSONEncoder
 import json
 
-store = {}
-results = []
+
+default_selector = Selector()
 
 def set(key, value):
     """Sets a hyperparameter.  Can be used to set an array of hyperparameters."""
-    store[key]=value
-    return store
+    global default_selector
+    return default_selector.set(key, value)
 
 def count_configs():
-    count = 1
-
-    for key in store:
-        value = store[key]
-        if(isinstance(value,list)):
-            count *= len(value)
-
-    return count
+    global default_selector
+    return default_selector.count_configs()
 
 def get_config_value(k, i):
     """Gets the ith config value for k.  e.g. get_config_value('x', 1)"""
-    if(not isinstance(store[k], list)):
-        return store[k]
-    else:
-        return store[k][i]
+    global default_selector
+    return default_selector.get_config_value(k, i)
 
 def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
     """Generate max configs, each one a dictionary.  e.g. [{'x': 1}] 
@@ -39,89 +27,44 @@ def configs(max_configs=1, offset=None, serial=False, create_uuid=True):
       Will also add a config UUID, useful for tracking configs.  
       You can turn this off by passing create_uuid=False.
     """
-    if len(store)==0:
-        return []
-
-    configs = []
-
-    if(offset is None):
-        offset = max(0, random.randint(0, count_configs()))
-    for i in range(max_configs):
-        # get an element to index over
-
-        config = config_at(offset)
-        if(create_uuid):
-          config["uuid"]=uuid.uuid4().hex
-        configs.append(config)
-        if(serial):
-            offset+=1
-        else:
-            offset = max(0, random.randint(0, count_configs()))
-    return configs
+    global default_selector
+    return default_selector.configs(max_configs, offset, serial, create_uuid)
 
 def config_at(i):
   """Gets the ith config"""
-  selections = {}
-  for key in store:
-    value = store[key]
-    if isinstance(value, list):
-        selected = i % len(value)
-        i = i // len(value)
-        selections[key]= value[selected]
-    else:
-        selections[key]= value
-
-  return selections
+  global default_selector
+  return default_selector.config_at(i)
 
 def random_config():
-  offset = max(0, random.randint(0, count_configs()))
-  return config_at(offset)
+  global default_selector
+  return default_selector.random_config()
 
 def reset():
     """Reset the hyperchamber variables"""
-    global store
-    global results
-    store = {}
-    results = []
-    return
+    global default_selector
+    return default_selector.reset()
 
 def top(sort_by):
     """Get the best results according to your custom sort method."""
-    sort = sorted(results, key=sort_by)
-    return sort
+    global default_selector
+    return default_selector.top(sort_by)
 
 def record(config, result):
     """Record the results of a config."""
-    results.append((config, result))
-
-# for function serialization
-class HCEncoder(JSONEncoder):
-  def default(self, o):
-    if(hasattr(o, '__call__')): # is function
-      return "function:" +o.__module__+"."+o.__name__
-    else:
-      try:
-          return o.__dict__    
-      except AttributeError:
-          try:
-             return str(o)
-          except AttributeError:
-              return super(o)
+    global default_selector
+    return default_selector.record(config, result)
 
 def load(filename):
     """Loads a config from disk"""
-    content = open(filename)
-    return json.load(content)
+    global default_selector
+    return default_selector.load(filename)
 
-def load_or_create_config(filename, config):
-    """Loads a config from disk"""
-    os.makedirs(os.path.dirname(os.path.expanduser(filename)), exist_ok=True)
-    if os.path.exists(filename):
-        return load(filename)
-
-    save(filename, config)
-    return config
+def load_or_create_config(filename, config=None):
+    """Loads a config from disk.  Defaults to a random config if none is specified"""
+    global default_selector
+    return default_selector.load_or_create_config(filename, config)
 
 def save(filename, config):
     """Loads a config from disk"""
-    open(os.path.expanduser(filename), 'w').write(json.dumps(config, cls=HCEncoder))
+    global default_selector
+    return default_selector.save(filename, config)

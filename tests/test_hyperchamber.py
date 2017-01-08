@@ -40,9 +40,9 @@ class hyperchamber_test(unittest.TestCase):
 
     def test_set2_2vars(self):
         hc.reset()
-        hc.set('x', [1,2])
+        hc.set('x', [1])
         hc.set('y', [3,4])
-        self.assertEqual(hc.configs(2, create_uuid=False, serial=True,offset=0), [{'x':1,'y':3},{'x':2,'y':4}])
+        self.assertEqual(hc.configs(2, create_uuid=False, serial=True,offset=0), [{'x':1,'y':3},{'x':1,'y':4}])
 
     def test_configs(self):
         hc.reset()
@@ -62,7 +62,6 @@ class hyperchamber_test(unittest.TestCase):
     def test_reset(self):
         hc.reset()
         self.assertEqual(hc.configs(), [])
-        self.assertEqual(hc.results, [])
         self.assertEqual(hc.count_configs(), 1)
 
     def test_store_size(self):
