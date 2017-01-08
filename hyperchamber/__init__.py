@@ -2,6 +2,7 @@ import hyperchamber.io as io
 
 from hyperchamber.selector import *
 
+import importlib
 
 
 default_selector = Selector()
@@ -67,3 +68,26 @@ def save(filename, config):
     """Loads a config from disk"""
     global default_selector
     return default_selector.save(filename, config)
+
+
+# This looks up a function by name.
+def get_function(name):
+    if not isinstance(name, str):
+        return name
+    namespaced_method = name.split(":")[1]
+    method = namespaced_method.split(".")[-1]
+    namespace = ".".join(namespaced_method.split(".")[0:-1])
+    return getattr(importlib.import_module(namespace),method)
+
+# Take a config and replace any string starting with 'function:' with a function lookup.
+def lookup_functions(config):
+    for key, value in config.items():
+        if(isinstance(value, str) and value.startswith("function:")):
+            config[key]=get_function(value)
+        if(isinstance(value, list) and len(value) > 0 and isinstance(value[0],str) and value[0].startswith("function:")):
+            config[key]=[get_function(v) for v in value]
+            
+    return config
+
+
+
