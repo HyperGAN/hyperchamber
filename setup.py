@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='hyperchamber',
-    version='0.2.4',
+    version='0.2.5',
     description='Tune and optimize your hyperparameters',
     author='Martyn Garcia',
     author_email="martyn@255bits.com",
