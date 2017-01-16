@@ -4,6 +4,8 @@ import os
 import uuid
 import json
 
+from .config import Config
+
 
 # for function serialization
 class HCEncoder(JSONEncoder):
@@ -84,7 +86,7 @@ class Selector:
         else:
             selections[key]= value
 
-      return selections
+      return Config(selections)
 
     def random_config(self):
       offset = max(0, random.randint(0, self.count_configs()))
