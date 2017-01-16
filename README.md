@@ -1,13 +1,17 @@
 # hyperchamber
 Random search your hyper parameters.
 
-## Changelog
+# Changelog
 
-### 0.2
+## 0.2.x
+
+* feature: access Config variables with '.' notation
+
+## 0.2
 
 * local save/load
 
-### 0.1
+## 0.1
 
 * initial pip release
 
