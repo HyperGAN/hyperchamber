@@ -110,7 +110,7 @@ class Selector:
     def load(self, filename):
         """Loads a config from disk"""
         content = open(filename)
-        return json.load(content)
+        return Config(json.load(content))
 
     def load_or_create_config(self, filename, config=None):
         """Loads a config from disk.  Defaults to a random config if none is specified"""
