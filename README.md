@@ -36,8 +36,6 @@ config = hc.random_config() # => { 'learning_rate' : 0.2 }
   Our search space of options here is now 720 options.  Note we only have 2 variables.  This search space expands exponentially with new options to search.
 
 
-This is currently in development and not ready for use (yet).
-
 # Installation
 
 ## Developer mode
