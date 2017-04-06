@@ -52,7 +52,6 @@ def sample(config, samples):
   headers=get_headers(no_content_type=True)
   headers["config"]= json.dumps(config, cls=HCEncoder)
   headers["labels"]= json.dumps(labels)
-  print("With headers", headers)
 
   try:
       r = requests.post(url, files=multiple_files, headers=headers, timeout=30)
