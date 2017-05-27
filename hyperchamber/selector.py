@@ -23,8 +23,8 @@ class HCEncoder(JSONEncoder):
 
 
 class Selector:
-    def __init__(self):
-        self.store = {}
+    def __init__(self, initialStore = {}):
+        self.store = initialStore
         self.results = []
     def set(self, key, value):
         """Sets a hyperparameter.  Can be used to set an array of hyperparameters."""
