@@ -21,6 +21,7 @@ class hyperchamber_test(unittest.TestCase):
         hc.set('x', [1])
         config = hc.configs(1, offset=0, serial=True,create_uuid=False)[0]
         self.assertEqual(config.x, 1)
+        self.assertEqual(config.y, None)
 
     def test_createUUID(self):
         hc.reset()

@@ -12,7 +12,9 @@ class Config(dict):
                 self[k] = v
 
     def __getattr__(self, attr):
-        return self.get(attr)
+        if attr in self:
+            return self.get(attr)
+        return None
 
     def __setattr__(self, key, value):
         self.__setitem__(key, value)
