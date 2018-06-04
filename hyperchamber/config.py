@@ -1,7 +1,11 @@
 # reference http://stackoverflow.com/questions/2352181/how-to-use-a-dot-to-access-members-of-dictionary
+
+
+# represent a single hyperparameter configuration (i.e. hyperparameter -> value)
 class Config(dict):
     def __init__(self, *args, **kwargs):
         super(Config, self).__init__(*args, **kwargs)
+
         for arg in args:
             if isinstance(arg, dict):
                 for k, v in arg.items():
@@ -11,10 +15,11 @@ class Config(dict):
             for k, v in kwargs.items():
                 self[k] = v
 
-    def __getattr__(self, attr):
-        if attr in self:
-            return self.get(attr)
+    def __missing__(self, attr):
         return None
+
+    def __getattr__(self, attr):
+        return self.get(attr)
 
     def __setattr__(self, key, value):
         self.__setitem__(key, value)

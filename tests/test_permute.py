@@ -1,9 +1,9 @@
 import unittest
-import tensorflow as tf
-import numpy as np
 
+# import tensorflow as tf
+# import numpy as np
 import hyperchamber as hc
-#import hyperchamber.permute
+# import hyperchamber.permute
 
 
 class permute_test(unittest.TestCase):
