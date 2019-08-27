@@ -107,10 +107,14 @@ class Selector:
         """Record the results of a config."""
         self.results.append((config, result))
 
-    def load(self, filename):
+    def load(self, filename, load_toml=False):
         """Loads a config from disk"""
         content = open(filename)
-        return Config(json.load(content))
+        if load_toml:
+            import toml
+            return Config(toml.load(content))
+        else:
+            return Config(json.load(content))
 
     def load_or_create_config(self, filename, config=None):
         """Loads a config from disk.  Defaults to a random config if none is specified"""
