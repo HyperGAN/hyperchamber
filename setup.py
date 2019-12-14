@@ -2,10 +2,10 @@ from setuptools import setup
 
 setup(
     name='hyperchamber',
-    version='0.2.8',
+    version='0.3',
     description='Tune and optimize your hyperparameters',
-    author='Martyn Garcia',
-    author_email="martyn@255bits.com",
+    author='255bits',
+    author_email="support@255bits.com",
     packages=['hyperchamber', 'hyperchamber.io'],
     install_requires=['requests >= 2.4.2'],
     url='https://github.com/255bits/hyperchamber',
