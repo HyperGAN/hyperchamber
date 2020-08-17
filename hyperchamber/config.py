@@ -29,3 +29,9 @@ class Config(dict):
     def __delitem__(self, key):
         super(Config, self).__delitem__(key)
         del self.__dict__[key]
+
+    def __getstate__(self):
+        return dict(self)
+
+    def __setstate__(self, d):
+        self.__dict__ = d
