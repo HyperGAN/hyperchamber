@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from setuptools import setup
 
 setup(
     name='hyperchamber',
     version='0.3.1',
     description='Tune and optimize your hyperparameters',
+    long_description=Path(__file__).with_name('README.md').read_text(encoding='utf-8'),
+    long_description_content_type='text/markdown',
     author='255bits',
     author_email="support@255bits.com",
     packages=['hyperchamber', 'hyperchamber.io'],

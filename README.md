@@ -103,3 +103,11 @@ Example:
     print(config, result)
 ```
 
+## Publishing to PyPI
+
+A merge to `master` publishes the tested wheel and source distribution when
+the version in `setup.py` is absent from PyPI.
+
+Configure PyPI Trusted Publishing for [hyperchamber](https://pypi.org/manage/project/hyperchamber/settings/publishing/)
+with owner `HyperGAN`, repository `hyperchamber`, workflow `publish.yml`, and
+environment `pypi`. The GitHub environment allows publishes from `master`.
